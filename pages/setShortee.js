@@ -11,19 +11,14 @@ const Container = styled.div`
   align-items: center;
   flex-wrap: wrap;
   width: 100%;
-  background-color: #696969; // Changed to auxiliary color
 `;
 
-const Input = styled(AntdInput)`
-  background-color: #696969; // Changed to auxiliary color
-  color: #8fbc8f; // Changed to primary color
-`;
+const Input = styled(AntdInput)``;
 
 const Paragraph = styled.p`
   margin-top: 24px;
   word-break: break-all;
   font-size: 1.25rem;
-  color: #8fbc8f; // Changed to primary color
 `;
 
 const InputWrapper = styled.div`
@@ -32,8 +27,6 @@ const InputWrapper = styled.div`
   width: 100%;
   .ant-input-group.ant-input-group-compact {
     display: inline-flex;
-    background-color: #696969; // Changed to auxiliary color
-    color: #8fbc8f; // Changed to primary color
   }
 `;
 

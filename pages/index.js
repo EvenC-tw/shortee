@@ -1,6 +1,7 @@
 import { Input as AntdInput, Button } from 'antd';
 
 import styled from 'styled-components';
+import themeVariables from '../styles/theme';
 import { useRouter } from 'next/router';
 import { useState } from 'react';
 import uuidBase62 from 'uuid-base62';
@@ -11,29 +12,27 @@ const Container = styled.div`
   align-items: center;
   flex-wrap: wrap;
   width: 100%;
-  background-color: #696969; // Changed to auxiliary color
 `;
 
-const Input = styled(AntdInput)`
-  background-color: #696969; // Changed to auxiliary color
-  color: #8fbc8f; // Changed to primary color
-`;
+const Input = styled(AntdInput)``;
 
 const Paragraph = styled.p`
   margin-top: 24px;
   word-break: break-all;
   font-size: 1.25rem;
-  color: #8fbc8f; // Changed to primary color
 `;
 
 const InputWrapper = styled.div`
   display: flex;
   justify-content: center;
   width: 100%;
+  &&& {
+    ${Input} {
+      background-color: ${themeVariables['@text-color']};
+    }
+  }
   .ant-input-group.ant-input-group-compact {
     display: inline-flex;
-    background-color: #696969; // Changed to auxiliary color
-    color: #8fbc8f; // Changed to primary color
   }
 `;
 
@@ -44,18 +43,31 @@ function Home() {
   const [shortee, setShortee] = useState('');
   const [shortees, setShortees] = useState([]);
   const router = useRouter();
+
   function handleUrlInput({ target: { value } }) {
-    let url = value;
-    if (!/^https:\/\//.test(url)) {
-      url = `https://${url}`;
-    }
     try {
-      url = new URL(url);
+      let parsedUrl = new URL(value);
+
+      setUrl(parsedUrl);
     } catch (error) {
-      console.error(error);
-      return false;
+      console.error('Invalid URL:', error);
+
+      if (!value.startsWith(`http://`) && !value.startsWith(`https://`)) {
+        try {
+          let parsedUrl = new URL(`https://${value}`);
+          setUrl(parsedUrl);
+        } catch (httpsError) {
+          try {
+            let parsedUrl = new URL(`http://${value}`);
+            setUrl(parsedUrl);
+          } catch (httpError) {
+            return false;
+          }
+        }
+      } else {
+        return false;
+      }
     }
-    setUrl(url);
   }
 
   // Fetch shortee
@@ -117,16 +129,16 @@ function Home() {
     <Container>
       <InputWrapper>
         {/* <Input.Group compact> */}
-          <Input
-            size="large"
-            addonBefore="(https//)"
-            placeholder="enter URL here..."
-            onInput={handleUrlInput}
-            onKeyDown={({ key }) => key === 'Enter' && postShortee()}
-          />
-          <Button size="large" type="button" onClick={postShortee}>
-            {shorteeing ? 'Shorteeing...' : 'Shortee!'}
-          </Button>
+        <Input
+          size="large"
+          addonBefore="(https//)"
+          placeholder="enter URL here..."
+          onInput={handleUrlInput}
+          onKeyDown={({ key }) => key === 'Enter' && postShortee()}
+        />
+        <Button size="large" type="button" onClick={postShortee}>
+          {shorteeing ? 'Shorteeing...' : 'Shortee!'}
+        </Button>
         {/* </Input.Group> */}
       </InputWrapper>
       {shortee && (

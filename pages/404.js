@@ -25,7 +25,6 @@ const Paragraph = styled(AntdParagraph)`
   margin-top: 24px;
   word-break: break-all;
   font-size: 1.25rem;
-  color: #e5e5e5;
 `;
 const InputWrapper = styled.div`
   display: flex;

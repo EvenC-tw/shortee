@@ -20,15 +20,13 @@ const Content = styled.div`
 
 const Footer = styled.div``;
 const Layout = styled(AntdLayout)`
-  background-color: ${themeVariables['@text-color']};
+  /* background-color: ${themeVariables['@text-color']}; */
   ${Header} {
     position: fixed;
     display: flex;
     justify-content: center;
     width: 100%;
     height: 72px;
-    background-color: #08090a;
-    color: #e5e5e5;
     z-index: 1;
     p {
       font-size: 1.5rem;
@@ -41,14 +39,12 @@ const Layout = styled(AntdLayout)`
     justify-content: flex-start;
     align-items: center;
     padding: calc(72px + 24px) 24px calc(60px + 24px);
-    background-color: #000000;
   }
   ${Footer} {
     position: fixed;
     bottom: 0;
     width: 100%;
     height: 60px;
-    background-color: #2a3137;
     z-index: 1;
   }
 `;
@@ -56,7 +52,6 @@ const Layout = styled(AntdLayout)`
 const Title = styled.h1``;
 
 const StyledLink = styled.a`
-  color: #ffffff;
   text-decoration: none;
 
   :hover {
@@ -68,7 +63,9 @@ function MyApp({ Component, pageProps }: AppProps) {
   return (
     <Layout>
       <Header>
-        <Title><Typography.Title>Let&apos;s Get Shortee!</Typography.Title></Title>
+        <Title>
+          <Typography.Title>Let&apos;s Get Shortee!</Typography.Title>
+        </Title>
       </Header>
       <Content>
         <Component {...pageProps} />
