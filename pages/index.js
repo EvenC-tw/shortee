@@ -1,40 +1,11 @@
-import { Input as AntdInput, Button } from 'antd';
+import { Button, Col, Input, Row, Space, Typography, message } from 'antd';
 
-import styled from 'styled-components';
-import themeVariables from '../styles/theme';
+import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useState } from 'react';
-import uuidBase62 from 'uuid-base62';
+import uuidBase62 from 'uuid62';
 
-const Container = styled.div`
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  flex-wrap: wrap;
-  width: 100%;
-`;
-
-const Input = styled(AntdInput)``;
-
-const Paragraph = styled.p`
-  margin-top: 24px;
-  word-break: break-all;
-  font-size: 1.25rem;
-`;
-
-const InputWrapper = styled.div`
-  display: flex;
-  justify-content: center;
-  width: 100%;
-  &&& {
-    ${Input} {
-      background-color: ${themeVariables['@text-color']};
-    }
-  }
-  .ant-input-group.ant-input-group-compact {
-    display: inline-flex;
-  }
-`;
+const { Paragraph, Text } = Typography;
 
 function Home() {
   const [fetching, setFetching] = useState(false);
@@ -50,7 +21,7 @@ function Home() {
 
       setUrl(parsedUrl);
     } catch (error) {
-      console.error('Invalid URL:', error);
+      console.error('無效的 URL:', error);
 
       if (!value.startsWith(`http://`) && !value.startsWith(`https://`)) {
         try {
@@ -70,13 +41,10 @@ function Home() {
     }
   }
 
-  // Fetch shortee
+  // 取得短網址列表 (目前未使用，但保留函數結構)
   async function fetchShortee() {
-    // change fetching state
     setFetching(true);
-
     try {
-      // Get Shortee
       fetch('/api/shortee', {
         method: 'GET',
       })
@@ -85,85 +53,89 @@ function Home() {
           setShortees(data);
         })
         .finally(() => {
-          // reset the fetching state
           setFetching(false);
         });
     } catch (error) {
-      // Stop fetching state
-      return setFetching(false);
+      setFetching(false);
+      return false;
     }
   }
 
-  // Add new shortee
+  // 新增短網址
   async function postShortee() {
-    // change shorteeing state
     setShorteeing(true);
+    setShortee('');
 
+    if (!url || !url.href) {
+      message.error('請輸入有效的 URL。');
+      setShorteeing(false);
+      return;
+    }
     const validUrl = url.href;
     const tempShortee = uuidBase62.v4(validUrl).substring(0, 6);
 
     try {
-      // Post Shortee
-      fetch('/api/shortee', {
+      const response = await fetch('/api/shortee', {
         method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({
           origin: validUrl,
           shortee: tempShortee,
         }),
-      })
-        .then(async (res) => {
-          const data = await res.json();
-          setShortee(tempShortee);
-        })
-        .finally(() => {
-          // reset the shorteeing state
-          setShorteeing(false);
-        });
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: '發生錯誤，請聯絡下方的 Email 通報錯誤。' }));
+        throw new Error(errorData.message || `伺服器錯誤: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      if (data.success) {
+        setShortee(tempShortee);
+      } else {
+        throw new Error(data.message || '建立短網址失敗。');
+      }
     } catch (error) {
-      // Stop shorteeing state
-      return setShorteeing(false);
+      console.error('postShortee 函數出錯:', error);
+      message.error(error.message || '發生錯誤，請再試一次。');
+    } finally {
+      setShorteeing(false);
     }
   }
 
   return (
-    <Container>
-      <InputWrapper>
-        {/* <Input.Group compact> */}
-        <Input
-          size="large"
-          addonBefore="(https//)"
-          placeholder="enter URL here..."
-          onInput={handleUrlInput}
-          onKeyDown={({ key }) => key === 'Enter' && postShortee()}
-        />
-        <Button size="large" type="button" onClick={postShortee}>
-          {shorteeing ? 'Shorteeing...' : 'Shortee!'}
-        </Button>
-        {/* </Input.Group> */}
-      </InputWrapper>
-      {shortee && (
-        <a href={`${location.origin}/${shortee}`} target="_blank" rel="noopener noreferrer">
-          <Paragraph
-            copyable={{
-              tooltips: false,
-            }}
-          >
-            {`${location.origin}/${shortee}`}
-          </Paragraph>
-        </a>
-      )}
-
-      {/* {
-        <Button type="button" onClick={getShortee}>
-          {fetching ? 'Fetching' : 'Fetch'}
-        </Button>
-      } */}
-      {/* <ul>
-        {shortees?.map((shortee) => (
-          <li>{`${shortee._id}: ${shortee.shortee}`}</li>
-        ))}
-      </ul> */}
-    </Container>
+    <Row justify="center" style={{ width: '100%' }}>
+      <Col xs={24} sm={20} md={16} lg={12} xl={10}>
+        <Space style={{ width: '100%', display: 'flex' }}>
+          <Input
+            size="large"
+            addonBefore={<Text>(https://)</Text>}
+            placeholder="請在此輸入網址..."
+            onInput={handleUrlInput}
+            onKeyDown={({ key }) => key === 'Enter' && postShortee()}
+            style={{ flexGrow: 1 }}
+          />
+          <Button size="large" type="primary" onClick={postShortee} loading={shorteeing}>
+            Shortee!
+          </Button>
+        </Space>
+        {shortee && (
+          <Link href={`${location.origin}/${shortee}`} target="_blank" rel="noopener noreferrer">
+            <Paragraph
+              copyable={{
+                tooltips: false,
+              }}
+              style={{ textAlign: 'center' }}
+            >
+              {`${location.origin}/${shortee}`}
+            </Paragraph>
+          </Link>
+        )}
+      </Col>
+    </Row>
   );
 }
 

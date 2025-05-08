@@ -1,71 +1,68 @@
-import { Input as AntdInput, Button, Typography } from 'antd';
-import { useEffect, useRef, useState } from 'react';
+import { Input as AntdInput, Button, Typography, message } from 'antd';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
-import styled from 'styled-components';
-import { useCallback } from 'react';
 import { useRouter } from 'next/router';
-import uuidBase62 from 'uuid-base62';
 
-// Hook
+// Hook 用於取得前一個 state 的值
 function usePrevious(value) {
-  // The ref object is a generic container whose current property is mutable ...
-  // ... and can hold any value, similar to an instance property on a class
   const ref = useRef();
-  // Store current value in ref
   useEffect(() => {
     ref.current = value;
-  }, [value]); // Only re-run if value changes
-  // Return previous value (happens before update in useEffect above)
-  return ref.current;
+  }, [value]); // 只有在 value 變動時才重新執行
+  return ref.current; // 回傳更新前的舊值
 }
-
-const { Paragraph: AntdParagraph } = Typography;
-const Input = styled(AntdInput)``;
-const Paragraph = styled(AntdParagraph)`
-  margin-top: 24px;
-  word-break: break-all;
-  font-size: 1.25rem;
-`;
-const InputWrapper = styled.div`
-  display: flex;
-  justify-content: center;
-  width: 100%;
-  ${Input} {
-    width: calc(100% - 25vw);
-  }
-`;
 
 function Shortee() {
   const [fetching, setFetching] = useState(false);
   const [shortee, setShortee] = useState(undefined);
   const router = useRouter();
   const prevShortee = usePrevious(shortee);
-  // Fetch shortee
+
+  // 根據短網址代碼 (shortee) 取得原始網址並執行跳轉
   const fetchShortee = useCallback(async () => {
-    // change fetching state
+    if (!shortee) return; // 若 shortee 未設定則不執行
+
     setFetching(true);
     try {
-      // Get Shortee
-      fetch(`/api/shortee?shortee=${shortee}`, {
+      const response = await fetch(`/api/shortee?shortee=${shortee}`, {
         method: 'GET',
-      })
-        .then(async (res) => {
-          const data = await res.json();
-          const { origin } = data;
-          location.href = `${origin}`;
-        })
-        .finally(() => {
-          // reset the fetching state
-          setFetching(false);
-        });
+      });
 
-      // // reload the page
-      // return router.push(router.asPath);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: '取得短網址詳細資訊時發生錯誤。' })); // 修改註解
+        throw new Error(errorData.message || `伺服器錯誤: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      if (data && data.origin) {
+        try {
+          new URL(data.origin); // 驗證 URL 結構
+          location.href = data.origin;
+        } catch (urlError) {
+          console.error("收到的原始 URL 無效:", data.origin, urlError); // 修改註解
+          message.error('擷取到的網址無效，若問題持續發生請聯絡技術支援。');
+          // 可選：導向至自訂錯誤頁面或顯示內嵌錯誤元件
+          // router.push('/invalid-url-error'); 
+        }
+      } else if (data && data.success === false) {
+        console.error("API 在取得 shortee 時回傳失敗:", data.message); // 修改註解
+        message.error(data.message || '無法擷取短網址。');
+        // router.push('/not-found'); // 或導向至更特定的錯誤頁面
+      } else {
+        console.warn(`找不到短網址 '${shortee}' 或 API 回應中缺少 origin 欄位。`); // 修改註解
+        message.error(`找不到短網址 '${shortee}' 或該網址無效。`);
+        // router.push('/not-found');
+      }
     } catch (error) {
-      // Stop fetching state
-      return setFetching(false);
+      console.error("fetchShortee 函數出錯:", error); // 修改註解
+      message.error(error.message || '取得短網址時發生錯誤。');
+      // 可選：導向至一般錯誤頁面
+      // router.push('/error');
+    } finally {
+      setFetching(false);
     }
-  }, [shortee, setFetching]);
+  }, [shortee, router]); // 若 router 用於導航，將其加入 useCallback 的依賴陣列
 
   useEffect(() => {
     if (router?.asPath !== '/') {

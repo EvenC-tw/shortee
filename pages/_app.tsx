@@ -1,82 +1,103 @@
-import { Layout as AntdLayout, Button, Input, Typography } from 'antd';
+import { ConfigProvider, Layout, Switch, Typography, theme } from 'antd';
+import React, { useEffect, useState } from 'react';
 
 import { AppProps } from 'next/app';
 import Link from 'next/link';
-import styled from 'styled-components';
-import themeVariables from '../styles/theme';
 
-const Container = styled.div`
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-`;
-
-const Header = styled.div``;
-
-const Content = styled.div`
-  flex: 1;
-  overflow: auto;
-`;
-
-const Footer = styled.div``;
-const Layout = styled(AntdLayout)`
-  /* background-color: ${themeVariables['@text-color']}; */
-  ${Header} {
-    position: fixed;
-    display: flex;
-    justify-content: center;
-    width: 100%;
-    height: 72px;
-    z-index: 1;
-    p {
-      font-size: 1.5rem;
-    }
-  }
-  ${Content} {
-    height: calc(100vh - 60px);
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-start;
-    align-items: center;
-    padding: calc(72px + 24px) 24px calc(60px + 24px);
-  }
-  ${Footer} {
-    position: fixed;
-    bottom: 0;
-    width: 100%;
-    height: 60px;
-    z-index: 1;
-  }
-`;
-
-const Title = styled.h1``;
-
-const StyledLink = styled.a`
-  text-decoration: none;
-
-  :hover {
-    color: ${themeVariables['@primary-color']};
-  }
-`;
+const { Header, Content, Footer } = Layout;
+const { Title } = Typography;
 
 function MyApp({ Component, pageProps }: AppProps) {
+  const [isDarkMode, setIsDarkMode] = useState(false);
+
+  useEffect(() => {
+    const storedTheme = localStorage.getItem('appTheme');
+    if (storedTheme) {
+      setIsDarkMode(storedTheme === 'dark');
+    }
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem('appTheme', isDarkMode ? 'dark' : 'light');
+  }, [isDarkMode]);
+
+  const toggleTheme = () => {
+    setIsDarkMode(!isDarkMode);
+  };
+
+  const layoutStyle: React.CSSProperties = {
+    minHeight: '100vh',
+    display: 'flex',
+    flexDirection: 'column',
+  };
+
+  const headerStyle: React.CSSProperties = {
+    height: '80px',
+    flexShrink: 0,
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '0 24px',
+  };
+
+  const contentStyle: React.CSSProperties = {
+    flexGrow: 1,
+    overflowY: 'auto',
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: '24px 48px',
+  };
+
+  const footerStyle: React.CSSProperties = {
+    textAlign: 'center',
+    flexShrink: 0,
+  };
+
+  const { darkAlgorithm, defaultAlgorithm } = theme;
+
+  // 監聽系統主題變化
+  useEffect(() => {
+    const isBrowserDarkMode = window.matchMedia('(prefers-color-scheme: dark)');
+    setIsDarkMode(isBrowserDarkMode.matches);
+
+    const handleChange = (e) => {
+      setIsDarkMode(e.matches);
+    };
+
+    isBrowserDarkMode.addEventListener('change', handleChange);
+    return () => isBrowserDarkMode.removeEventListener('change', handleChange);
+  }, []);
+
   return (
-    <Layout>
-      <Header>
-        <Title>
-          <Typography.Title>Let&apos;s Get Shortee!</Typography.Title>
-        </Title>
-      </Header>
-      <Content>
-        <Component {...pageProps} />
-      </Content>
-      <Footer>
-        powered by{' '}
-        <Link href="mailto:even@evenc.studio">
-          <StyledLink>Even</StyledLink>
-        </Link>
-      </Footer>
-    </Layout>
+    <ConfigProvider
+      theme={{
+        algorithm: isDarkMode ? darkAlgorithm : defaultAlgorithm,
+        token: {
+          colorBgContainer: isDarkMode ? '#1f1f1f' : 'white',
+          colorTextHeading: isDarkMode ? 'white' : 'black',
+        },
+        components: {
+          Layout: {
+            headerBg: isDarkMode ? '#001529' : 'white',
+          },
+        },
+      }}
+    >
+      <Layout style={layoutStyle}>
+        <Header style={headerStyle}>
+          <Title style={{ margin: 0 }}>Let&apos;s Get Shortee!</Title>
+          <Switch checked={isDarkMode} onChange={toggleTheme} />
+        </Header>
+        <Content style={contentStyle}>
+          <Component {...pageProps} />
+        </Content>
+        <Footer style={footerStyle}>
+          powered by <Link href="mailto:even@evenc.studio">Even</Link>
+        </Footer>
+      </Layout>
+    </ConfigProvider>
   );
 }
 
