@@ -50,7 +50,7 @@ async function addShortee(req, res) {
     // connect to the database
     const { db } = await connectToDatabase();
     // add the shortee
-    const result = await db.collection('urlMap').insertOne(JSON.parse(req.body));
+    const result = await db.collection('urlMap').insertOne(req.body);
     // return a message
     return res.json({
       message: 'Shortee added successfully',
