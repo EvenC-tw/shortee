@@ -87,17 +87,12 @@ function Home() {
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: '發生錯誤，請聯絡下方的 Email 通報錯誤。' }));
+        const errorData = await response
+          .json()
+          .catch(() => ({ message: '建立短網址失敗。，請聯絡下方的 Email 通報錯誤。' }));
         throw new Error(errorData.message || `伺服器錯誤: ${response.status}`);
       }
-
-      const data = await response.json();
-
-      if (data.success) {
-        setShortee(tempShortee);
-      } else {
-        throw new Error(data.message || '建立短網址失敗。');
-      }
+      setShortee(tempShortee);
     } catch (error) {
       console.error('postShortee 函數出錯:', error);
       message.error(error.message || '發生錯誤，請再試一次。');
