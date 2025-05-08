@@ -62,7 +62,7 @@ function Shortee() {
     } finally {
       setFetching(false);
     }
-  }, [shortee, router]); // 若 router 用於導航，將其加入 useCallback 的依賴陣列
+  }, [shortee]); // 若 router 用於導航，將其加入 useCallback 的依賴陣列
 
   useEffect(() => {
     if (router?.asPath !== '/') {
