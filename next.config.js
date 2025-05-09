@@ -1,6 +1,16 @@
-module.exports = {
+const { version } = require('./package.json');
+
+/** @type {import('next').NextConfig} */
+const nextConfig = {
   distDir: 'build',
   reactStrictMode: true,
+  swcMinify: true,
+  compiler: {
+    styledComponents: true,
+  },
+  env: {
+    APP_VERSION: version,
+  },
   async headers() {
     return [
       {
@@ -15,3 +25,5 @@ module.exports = {
     ];
   },
 };
+
+module.exports = nextConfig;
