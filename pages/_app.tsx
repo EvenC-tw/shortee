@@ -1,4 +1,4 @@
-import { App, ConfigProvider, Layout, Switch, Typography, theme } from 'antd';
+import { App, ConfigProvider, Layout, Space, Switch, Typography, theme } from 'antd';
 import React, { useEffect, useState } from 'react';
 
 import { AppProps } from 'next/app';
@@ -58,10 +58,9 @@ function MyApp({ Component, pageProps }: AppProps) {
   };
 
   const headerStyle: React.CSSProperties = {
-    height: '80px',
+    minHeight: '5rem',
     flexShrink: 0,
     display: 'flex',
-    justifyContent: 'space-between',
     alignItems: 'center',
     padding: '0 24px',
   };
@@ -92,13 +91,13 @@ function MyApp({ Component, pageProps }: AppProps) {
         theme={{
           algorithm: isDarkMode ? darkAlgorithm : defaultAlgorithm,
           token: {
-            colorBgContainer: isDarkMode ? '#1f1f1f' : '#ffffff',
+            colorBgContainer: isDarkMode ? '#1f1f1f' : 'white',
             colorText: isDarkMode ? 'rgba(255, 255, 255, 0.85)' : 'rgba(0, 0, 0, 0.85)',
             colorTextHeading: isDarkMode ? 'rgba(255, 255, 255, 0.95)' : 'rgba(0, 0, 0, 0.9)',
           },
           components: {
             Layout: {
-              headerBg: isDarkMode ? '#1f1f1f' : '#ffffff',
+              headerBg: isDarkMode ? '#1f1f1f' : 'white',
               bodyBg: isDarkMode ? '#141414' : '#f0f2f5',
             },
           },
@@ -107,8 +106,14 @@ function MyApp({ Component, pageProps }: AppProps) {
         <App>
           <Layout style={layoutStyle}>
             <Header style={headerStyle}>
-              <Title style={{ margin: 0 }}>Let&apos;s Get Shortee!</Title>
-              <Switch checkedChildren="🌙" unCheckedChildren="☀️" checked={isDarkMode} onChange={toggleTheme} />
+              <Space align="center" style={{ width: '100%', justifyContent: 'space-between' }}>
+                <Title
+                  style={{ margin: 0, flexGrow: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                >
+                  Shortee
+                </Title>
+                <Switch checkedChildren="🌙" unCheckedChildren="☀️" checked={isDarkMode} onChange={toggleTheme} />
+              </Space>
             </Header>
             <Content style={contentStyle}>
               <Component {...pageProps} />
