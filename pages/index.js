@@ -1,5 +1,6 @@
 import { App, Button, Col, Form, Input, Row, Space, Typography } from 'antd';
 
+import Head from 'next/head';
 import Link from 'next/link';
 import { useState } from 'react';
 import uuidBase62 from 'uuid62';
@@ -44,6 +45,13 @@ function Home() {
   const [urlInput, setUrlInput] = useState('');
   const [validateStatus, setValidateStatus] = useState('');
   const [helpMessage, setHelpMessage] = useState('');
+
+  const meta = {
+    type: 'website',
+    url: 'https://shortee.evenc.studio/',
+    title: 'Shortee - 您的縮網址小幫手',
+    description: '輕鬆產生簡短、易於分享的網址。由 evenc.studio 提供。',
+  };
 
   function validateAndSetUrl(inputValue) {
     const trimmedValue = inputValue.trim();
@@ -152,11 +160,11 @@ function Home() {
         const errorData = await response.json().catch(() => ({ message: '處理請求時發生未知網路錯誤。' }));
         messageApi.error(errorData.message || `伺服器錯誤，狀態碼: ${response.status}`);
         setShorteeing(false);
-        return; 
+        return;
       }
-      
+
       setShortee(tempShorteeCode);
-      messageApi.success('短網址已成功產生！'); 
+      messageApi.success('短網址已成功產生！');
     } catch (error) {
       console.error('postShortee 函數處理錯誤:', error);
       messageApi.error(error.message || '建立短網址時發生預期外的錯誤，請稍後再試。');
@@ -166,56 +174,74 @@ function Home() {
   }
 
   return (
-    <Row justify="center" style={{ width: '100%' }}>
-      <Col xs={24} sm={20} md={16} lg={12} xl={10}>
-        <Space direction="vertical" size="large" style={{ width: '100%' }}>
-          <Form.Item 
-            validateStatus={validateStatus} 
-            help={helpMessage}
-            style={{ marginBottom: 0 }}
-          >
-            <Input
-              size="large"
-              addonBefore={<Text>(https://)</Text>}
-              placeholder="請在此輸入網址..."
-              value={urlInput}
-              onChange={handleInputChange}
-              onKeyDown={({ key }) => key === 'Enter' && isUrlValid && !shorteeing && postShortee()}
-              style={{ flexGrow: 1 }}
-            />
-          </Form.Item>
-          <Button 
-            size="large" 
-            type="primary" 
-            onClick={postShortee} 
-            loading={shorteeing}
-            disabled={!isUrlValid || shorteeing}
-            style={{ width: '100%' }}
-          >
-            Shortee!
-          </Button>
+    <>
+      <Head>
+        <title>{meta.title}</title>
+        <meta name="description" content={meta.description} />
 
-          {shortee && (
-            <Link 
-              href={`${location.origin}/${shortee}`}
-              target="_blank" 
-              rel="noopener noreferrer" 
-              style={{ display: 'block', width: '100%' }}
+        {/* Open Graph / Facebook */}
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content={meta.url} />
+        <meta property="og:title" content={meta.title} />
+        <meta property="og:description" content={meta.description} />
+        {/* <meta property="og:image" content="https://shortee.evenc.studio/og-image.png" /> */}
+        {/* 請替換成您的圖片網址 */}
+
+        {/* X */}
+        <meta property="x:card" content="summary_large_image" />
+        <meta property="x:url" content={meta.url} />
+        <meta property="x:title" content={meta.title} />
+        <meta property="x:description" content={meta.description} />
+        {/* <meta property="x:image" content="https://shortee.evenc.studio/x-image.png" /> */}
+        {/* 請替換成您的圖片網址 */}
+      </Head>
+      <Row justify="center" style={{ width: '100%' }}>
+        <Col xs={24} sm={20} md={16} lg={12} xl={10}>
+          <Space direction="vertical" size="large" style={{ width: '100%' }}>
+            <Form.Item validateStatus={validateStatus} help={helpMessage} style={{ marginBottom: 0 }}>
+              <Input
+                size="large"
+                addonBefore={<Text>(https://)</Text>}
+                placeholder="請在此輸入網址..."
+                value={urlInput}
+                onChange={handleInputChange}
+                onKeyDown={({ key }) => key === 'Enter' && isUrlValid && !shorteeing && postShortee()}
+                style={{ flexGrow: 1 }}
+              />
+            </Form.Item>
+            <Button
+              size="large"
+              type="primary"
+              onClick={postShortee}
+              loading={shorteeing}
+              disabled={!isUrlValid || shorteeing}
+              style={{ width: '100%' }}
             >
-              <Paragraph
-                copyable={{
-                  text: `${location.origin}/${shortee}`,
-                  tooltips: '點擊複製網址',
-                }}
-                style={{ textAlign: 'center', margin: 0 }} 
+              Shortee!
+            </Button>
+
+            {shortee && (
+              <Link
+                href={`${location.origin}/${shortee}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ display: 'block', width: '100%' }}
               >
-                {`${location.origin}/${shortee}`}
-              </Paragraph>
-            </Link>
-          )}
-        </Space>
-      </Col>
-    </Row>
+                <Paragraph
+                  copyable={{
+                    text: `${location.origin}/${shortee}`,
+                    tooltips: '點擊複製網址',
+                  }}
+                  style={{ textAlign: 'center', margin: 0 }}
+                >
+                  {`${location.origin}/${shortee}`}
+                </Paragraph>
+              </Link>
+            )}
+          </Space>
+        </Col>
+      </Row>
+    </>
   );
 }
 
