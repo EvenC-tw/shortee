@@ -14,6 +14,9 @@ importers:
       '@ant-design/icons':
         specifier: ^4.7.0
         version: 4.7.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@vercel/kv':
+        specifier: ^3.0.0
+        version: 3.0.0
       antd:
         specifier: ^5.25.0
         version: 5.25.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -711,6 +714,9 @@ packages:
     cpu: [x64]
     os: [win32]
 
+  '@upstash/redis@1.34.9':
+    resolution: {integrity: sha512-7qzzF2FQP5VxR2YUNjemWs+hl/8VzJJ6fOkT7O7kt9Ct8olEVzb1g6/ik6B8Pb8W7ZmYv81SdlVV9F6O8bh/gw==}
+
   '@vercel/build-utils@6.8.2':
     resolution: {integrity: sha512-pyDBREAzaLBM3zoURCCKjnKIqtqPprKcwDdd9eBTGI32qOSpbwswtyqtgj2zH/Ro0LI61jCr6sK87JHILCr1sg==}
 
@@ -728,6 +734,10 @@ packages:
 
   '@vercel/hydrogen@0.0.64':
     resolution: {integrity: sha512-1rzFB664G6Yzp7j4ezW9hvVjqnaU2BhyUdhchbsxtRuxkMpGgPBZKhjzRQHFvlmkz37XLC658T5Nb1P91b4sBw==}
+
+  '@vercel/kv@3.0.0':
+    resolution: {integrity: sha512-pKT8fRnfyYk2MgvyB6fn6ipJPCdfZwiKDdw7vB+HL50rjboEBHDVBEcnwfkEpVSp2AjNtoaOUH7zG+bVC/rvSg==}
+    engines: {node: '>=14.6'}
 
   '@vercel/next@3.9.3':
     resolution: {integrity: sha512-jHuw1HYzaLt5qzJm+U1ydzKMSM9ptW5vHZ3AkFqkav7qaCDrvV0SKOiNQ8xoJhBLNFuXQY6Z4l8Ag86kUYevGA==}
@@ -1057,6 +1067,9 @@ packages:
   cross-spawn@7.0.6:
     resolution: {integrity: sha512-uV2QOWP2nWzsy2aMp8aRibhi9dlzF5Hgh5SHaB9OiTGEyDTiJJyx0uy51QXdyWbtAHNua4XJzUKca3OzKUd3vA==}
     engines: {node: '>= 8'}
+
+  crypto-js@4.2.0:
+    resolution: {integrity: sha512-KALDyEYgpY+Rlob/iriUtjV6d5Eq+Y191A5g4UqLAi8CyGP9N1+FdVbkc1SxKc2r4YAYqG8JzO2KGL+AizD70Q==}
 
   css-color-keywords@1.0.0:
     resolution: {integrity: sha512-FyyrDHZKEjXDpNJYvVsV960FiqQyXc/LlYmsxl2BcdMb2WPx0OGRVgTg55rPSyLSNMqP52R9r8geSp7apN3Ofg==}
@@ -3822,6 +3835,10 @@ snapshots:
   '@unrs/resolver-binding-win32-x64-msvc@1.7.2':
     optional: true
 
+  '@upstash/redis@1.34.9':
+    dependencies:
+      crypto-js: 4.2.0
+
   '@vercel/build-utils@6.8.2': {}
 
   '@vercel/error-utils@1.0.10': {}
@@ -3848,6 +3865,10 @@ snapshots:
   '@vercel/go@2.5.1': {}
 
   '@vercel/hydrogen@0.0.64': {}
+
+  '@vercel/kv@3.0.0':
+    dependencies:
+      '@upstash/redis': 1.34.9
 
   '@vercel/next@3.9.3': {}
 
@@ -4312,6 +4333,8 @@ snapshots:
       path-key: 3.1.1
       shebang-command: 2.0.0
       which: 2.0.2
+
+  crypto-js@4.2.0: {}
 
   css-color-keywords@1.0.0: {}
 
