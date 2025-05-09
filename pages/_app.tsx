@@ -1,13 +1,12 @@
 import { App, ConfigProvider, Layout, Switch, Typography, theme } from 'antd';
 import React, { useEffect, useState } from 'react';
-import { createGlobalStyle, css } from 'styled-components';
 
 import { AppProps } from 'next/app';
 import Link from 'next/link';
-import Paragraph from 'antd/es/typography/Paragraph';
+import { createGlobalStyle } from 'styled-components';
 
 const { Header, Content, Footer } = Layout;
-const { Title } = Typography;
+const { Title, Paragraph } = Typography;
 
 interface GlobalStyleProps {
   isDarkMode: boolean;
