@@ -1,4 +1,7 @@
-import { kv } from '@vercel/kv';
+import { DatabaseFactory, DatabaseType } from '../../lib/database/factory';
+
+// 從環境變數取得資料庫類型，預設使用 MongoDB
+const dbType = process.env.DATABASE_TYPE || 'mongodb';
 
 export default async function handler(req, res) {
   const { method } = req;
@@ -17,24 +20,26 @@ export default async function handler(req, res) {
 }
 
 async function getShortee(req, res) {
-  console.log('getShortee API (KV) called with query:', req.query);
+  console.log(`getShortee API (${dbType}) called with query:`, req.query);
   const { shortee } = req.query;
 
   if (!shortee || typeof shortee !== 'string') {
-    console.warn('getShortee (KV): Missing or invalid shortee parameter.');
+    console.warn('getShortee: Missing or invalid shortee parameter.');
     return res.status(400).json({ message: 'Shortee parameter is required and must be a string.', success: false });
   }
 
   try {
-    const data = await kv.get(shortee);
+    const db = await DatabaseFactory.getDatabase(dbType);
+    const data = await db.getShortee(shortee);
+    
     if (data) {
-      return res.status(200).json(data);
+      return res.status(200).json({ origin: data.origin });
     } else {
-      console.log(`getShortee (KV): Key ${shortee} not found.`);
+      console.log(`getShortee: Code ${shortee} not found.`);
       return res.status(404).json({ message: `Shortee '${shortee}' not found.`, success: false });
     }
   } catch (error) {
-    console.error('Error in getShortee (KV):', error);
+    console.error('Error in getShortee:', error);
     const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred while fetching shortee.';
     return res.status(500).json({
       message: errorMessage,
@@ -44,11 +49,11 @@ async function getShortee(req, res) {
 }
 
 async function addShortee(req, res) {
-  console.log('addShortee API (KV) called with body:', req.body);
+  console.log(`addShortee API (${dbType}) called with body:`, req.body);
   const { origin, shortee } = req.body;
 
   if (!origin || typeof origin !== 'string' || !shortee || typeof shortee !== 'string') {
-    console.warn('addShortee (KV): Missing or invalid origin or shortee in request body.');
+    console.warn('addShortee: Missing or invalid origin or shortee in request body.');
     return res
       .status(400)
       .json({ message: 'Both origin URL and shortee code are required and must be strings.', success: false });
@@ -62,7 +67,7 @@ async function addShortee(req, res) {
         throw new Error('Invalid origin URL format or scheme according to server-side validation.');
       }
     } catch (urlError) {
-      console.warn(`addShortee (KV): Invalid origin URL format: ${origin}. Error: ${urlError.message}`);
+      console.warn(`addShortee: Invalid origin URL format: ${origin}. Error: ${urlError.message}`);
       return res.status(400).json({ message: `無效的原始網址格式: ${urlError.message}`, success: false });
     }
 
@@ -70,7 +75,7 @@ async function addShortee(req, res) {
     parsedOriginUrl.hash = '';
     const urlForValidation = parsedOriginUrl.href;
 
-    console.log(`addShortee (KV): Checking reachability for: ${urlForValidation}`);
+    console.log(`addShortee: Checking reachability for: ${urlForValidation}`);
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 7000);
@@ -88,7 +93,7 @@ async function addShortee(req, res) {
 
       if (!response.ok && response.status >= 400 && response.status !== 403 && response.status !== 405) {
         console.warn(
-          `addShortee (KV): URL reachability check failed for ${urlForValidation} - Status: ${response.status}`
+          `addShortee: URL reachability check failed for ${urlForValidation} - Status: ${response.status}`
         );
         return res.status(400).json({
           message: `目標網址似乎無法訪問或不存在 (狀態碼: ${response.status})。請檢查網址是否正確。`,
@@ -96,11 +101,11 @@ async function addShortee(req, res) {
         });
       }
       console.log(
-        `addShortee (KV): URL reachability check successful for ${urlForValidation} - Status: ${response.status}`
+        `addShortee: URL reachability check successful for ${urlForValidation} - Status: ${response.status}`
       );
     } catch (fetchError) {
       console.warn(
-        `addShortee (KV): URL reachability check threw an error for ${urlForValidation}: ${fetchError.name} - ${fetchError.message}`
+        `addShortee: URL reachability check threw an error for ${urlForValidation}: ${fetchError.name} - ${fetchError.message}`
       );
       let userMessage = '無法驗證目標網址的可達性。請檢查網址是否正確，或稍後再試。';
       if (fetchError.name === 'AbortError') {
@@ -117,12 +122,23 @@ async function addShortee(req, res) {
       });
     }
 
-    console.log(`addShortee (KV): Attempting to set KV: key=${shortee}, value={ origin: ${origin} }`);
+    console.log(`addShortee: Attempting to save shortee: code=${shortee}, origin=${origin}`);
     try {
-      await kv.set(shortee, { origin: origin });
-      console.log(`addShortee (KV): KV.set successful for key: ${shortee}, stored origin: ${origin}`);
-    } catch (kvError) {
-      console.error(`addShortee (KV): Failed to set KV for key ${shortee}:`, kvError);
+      const db = await DatabaseFactory.getDatabase(dbType);
+      await db.addShortee(shortee, {
+        origin: origin,
+        createdAt: new Date()
+      });
+      console.log(`addShortee: Successfully saved shortee: ${shortee}`);
+    } catch (dbError) {
+      if (dbError.message === '此短網址代碼已被使用') {
+        console.warn(`addShortee: Duplicate shortee code: ${shortee}`);
+        return res.status(409).json({
+          message: '此短網址代碼已被使用，請重試。',
+          success: false,
+        });
+      }
+      console.error(`addShortee: Failed to save shortee ${shortee}:`, dbError);
       return res.status(500).json({
         message: '儲存短網址時發生內部錯誤，請稍後再試。',
         success: false,
@@ -130,7 +146,7 @@ async function addShortee(req, res) {
     }
 
     return res.status(201).json({
-      message: 'Shortee added successfully using Vercel KV',
+      message: 'Shortee added successfully',
       success: true,
       data: {
         shortee,
@@ -139,7 +155,7 @@ async function addShortee(req, res) {
     });
   } catch (error) {
     // Catchall for unexpected errors in addShortee function body
-    console.error('Error in addShortee (KV) [Outer Try-Catch]:', error);
+    console.error('Error in addShortee [Outer Try-Catch]:', error);
     const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred while adding shortee.';
     return res.status(500).json({
       message: errorMessage,
