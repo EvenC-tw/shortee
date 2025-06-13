@@ -39,11 +39,7 @@ export class MongoDBDatabase implements DatabaseInterface {
     }
 
     try {
-      this.client = new MongoClient(uri, {
-        useNewUrlParser: true,
-        useUnifiedTopology: true,
-      });
-
+      this.client = new MongoClient(uri);
       await this.client.connect();
       this.db = this.client.db(dbName);
       
@@ -59,7 +55,7 @@ export class MongoDBDatabase implements DatabaseInterface {
    */
   async getShortee(shorteeCode: string): Promise<ShorteeData | null> {
     try {
-      const result = await this.db.collection('shortees').findOne({ _id: shorteeCode });
+      const result = await this.db.collection('shortees').findOne({ shorteeCode });
       if (!result) {
         return null;
       }
@@ -79,7 +75,7 @@ export class MongoDBDatabase implements DatabaseInterface {
   async addShortee(shorteeCode: string, data: ShorteeData): Promise<void> {
     try {
       await this.db.collection('shortees').insertOne({
-        _id: shorteeCode,
+        shorteeCode,
         origin: data.origin,
         createdAt: data.createdAt || new Date(),
       });
