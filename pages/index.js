@@ -2,6 +2,7 @@ import { App, Button, Col, Form, Input, Row, Space, Typography } from 'antd';
 
 import Head from 'next/head';
 import Link from 'next/link';
+import { UserAuth } from '../components/UserAuth';
 import { useState } from 'react';
 import uuidBase62 from 'uuid62';
 
@@ -197,6 +198,11 @@ function Home() {
       </Head>
       <Row justify="center" style={{ width: '100%' }}>
         <Col xs={24} sm={20} md={16} lg={12} xl={10}>
+          {/* 用戶狀態區域 */}
+          <Row justify="end" style={{ marginBottom: 16 }}>
+            <UserAuth />
+          </Row>
+          
           <Space direction="vertical" size="large" style={{ width: '100%' }}>
             <Form.Item validateStatus={validateStatus} help={helpMessage} style={{ marginBottom: 0 }}>
               <Input
