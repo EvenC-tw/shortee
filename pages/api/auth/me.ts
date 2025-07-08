@@ -1,5 +1,5 @@
-import { COOKIE_NAMES, ERROR_MESSAGES, LINE_CONFIG } from '../../../lib/auth/constants';
-import { getCookieValue, validateEnvironmentVariables } from '../../../lib/auth/utils';
+import { COOKIE_NAMES, ERROR_MESSAGES, LINE_CONFIG } from '../../../../utils/auth/constants';
+import { getCookieValue, validateEnvironmentVariables } from '../../../../utils/auth/utils';
 
 import jwt from 'jsonwebtoken';
 

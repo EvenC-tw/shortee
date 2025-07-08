@@ -1,5 +1,5 @@
-import { COOKIE_NAMES, ERROR_MESSAGES } from '../../../lib/auth/constants';
-import { clearCookie } from '../../../lib/auth/utils';
+import { COOKIE_NAMES, ERROR_MESSAGES } from '../../../../utils/auth/constants';
+import { clearCookie } from '../../../../utils/auth/utils';
 
 /**
  * 登出端點

@@ -1,7 +1,7 @@
 import { Avatar, Button, Dropdown } from 'antd';
 import { LogoutOutlined, UserOutlined } from '@ant-design/icons';
 
-import { useAuth } from '../lib/auth/useAuth';
+import { useAuth } from '../utils/auth/useAuth';
 
 /**
  * 用戶認證介面組件

@@ -2,13 +2,13 @@ import {
   COOKIE_NAMES,
   ERROR_MESSAGES,
   LINE_CONFIG
-} from '../../../lib/auth/constants';
+} from '../../../../utils/auth/constants';
 import {
   clearCookie,
   getCookieValue,
   setCookie,
   validateEnvironmentVariables
-} from '../../../lib/auth/utils';
+} from '../../../../utils/auth/utils';
 
 import jwt from 'jsonwebtoken';
 

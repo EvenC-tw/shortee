@@ -2,13 +2,13 @@ import {
   COOKIE_NAMES,
   ERROR_MESSAGES,
   LINE_CONFIG
-} from '../../../lib/auth/constants';
+} from '../../../../utils/auth/constants';
 import {
   buildLineAuthUrl,
   generateRandomString,
   setCookie,
   validateEnvironmentVariables
-} from '../../../lib/auth/utils';
+} from '../../../../utils/auth/utils';
 
 /**
  * Line 登入起始端點
