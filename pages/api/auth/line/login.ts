@@ -2,19 +2,20 @@ import {
   COOKIE_NAMES,
   ERROR_MESSAGES,
   LINE_CONFIG
-} from '../../../../utils/auth/constants';
+} from '@utils/auth/constants';
+import type { NextApiRequest, NextApiResponse } from 'next';
 import {
   buildLineAuthUrl,
   generateRandomString,
   setCookie,
   validateEnvironmentVariables
-} from '../../../../utils/auth/utils';
+} from '@utils/auth/utils';
 
 /**
  * Line 登入起始端點
  * 重定向用戶到 Line 授權頁面
  */
-export default function handler(req, res) {
+export default function handler(req: NextApiRequest, res: NextApiResponse) {
   // 驗證 HTTP 方法
   if (req.method !== 'GET') {
     return res.status(405).json({ message: ERROR_MESSAGES.METHOD_NOT_ALLOWED });
@@ -38,6 +39,6 @@ export default function handler(req, res) {
   setCookie(res, COOKIE_NAMES.LINE_NONCE, nonce, { MaxAge: LINE_CONFIG.COOKIE_OPTIONS.MAX_AGE });
 
   // 建立授權 URL 並重定向
-  const authUrl = buildLineAuthUrl(LINE_CHANNEL_ID, LINE_CALLBACK_URL, state, nonce);
+  const authUrl = buildLineAuthUrl(LINE_CHANNEL_ID!, LINE_CALLBACK_URL!, state, nonce);
   res.redirect(authUrl);
 } 
