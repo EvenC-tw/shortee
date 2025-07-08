@@ -1,9 +1,9 @@
-import { App, Button, Col, Form, Input, Row, Space, Typography } from 'antd';
+import { App, Avatar, Button, Col, Dropdown, Form, Input, Row, Space, Typography } from 'antd';
+import { LogoutOutlined, UserOutlined } from '@ant-design/icons';
+import { useEffect, useState } from 'react';
 
 import Head from 'next/head';
 import Link from 'next/link';
-import { UserAuth } from '../components/UserAuth';
-import { useState } from 'react';
 import uuidBase62 from 'uuid62';
 
 const { Paragraph, Text } = Typography;
@@ -46,6 +46,44 @@ function Home() {
   const [urlInput, setUrlInput] = useState('');
   const [validateStatus, setValidateStatus] = useState('');
   const [helpMessage, setHelpMessage] = useState('');
+
+  // 用戶狀態
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  // 檢查用戶登入狀態
+  useEffect(() => {
+    checkAuthStatus();
+  }, []);
+
+  const checkAuthStatus = async () => {
+    try {
+      const response = await fetch('/api/auth/me');
+      if (response.ok) {
+        const data = await response.json();
+        setUser(data.user);
+      }
+    } catch (error) {
+      console.error('Auth check failed:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLineLogin = () => {
+    window.location.href = '/api/auth/line/login';
+  };
+
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+      setUser(null);
+      messageApi.success('已成功登出');
+    } catch (error) {
+      console.error('Logout failed:', error);
+      messageApi.error('登出失敗');
+    }
+  };
 
   const meta = {
     type: 'website',
@@ -200,7 +238,44 @@ function Home() {
         <Col xs={24} sm={20} md={16} lg={12} xl={10}>
           {/* 用戶狀態區域 */}
           <Row justify="end" style={{ marginBottom: 16 }}>
-            <UserAuth />
+            {!loading && (
+              user ? (
+                <Dropdown
+                  menu={{
+                    items: [
+                      {
+                        key: 'profile',
+                        label: `歡迎，${user.name}`,
+                        disabled: true,
+                      },
+                      {
+                        type: 'divider',
+                      },
+                      {
+                        key: 'logout',
+                        label: '登出',
+                        icon: <LogoutOutlined />,
+                        onClick: handleLogout,
+                      },
+                    ],
+                  }}
+                  placement="bottomRight"
+                >
+                  <Avatar 
+                    style={{ cursor: 'pointer' }}
+                    icon={<UserOutlined />}
+                  />
+                </Dropdown>
+              ) : (
+                <Button 
+                  type="primary" 
+                  onClick={handleLineLogin}
+                  style={{ backgroundColor: '#00B900', borderColor: '#00B900' }}
+                >
+                  使用 Line 登入
+                </Button>
+              )
+            )}
           </Row>
           
           <Space direction="vertical" size="large" style={{ width: '100%' }}>
