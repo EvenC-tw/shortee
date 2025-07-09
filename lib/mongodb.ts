@@ -1,4 +1,4 @@
-import { MongoClient } from 'mongodb';
+import { Db, MongoClient } from 'mongodb';
 
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://username:password@60.250.98.61:27017';
 const MONGODB_DB = process.env.MONGODB_DB || 'shortee';
@@ -13,10 +13,15 @@ if (!MONGODB_DB) {
   throw new Error('Define the MONGODB_DB environmental variable');
 }
 
-let cachedClient = null;
-let cachedDb = null;
+let cachedClient: MongoClient | null = null;
+let cachedDb: Db | null = null;
 
-export async function connectToDatabase() {
+interface DatabaseConnection {
+  client: MongoClient;
+  db: Db;
+}
+
+export async function connectToDatabase(): Promise<DatabaseConnection> {
   // check the cached.
   if (cachedClient && cachedDb) {
     // load from cache
@@ -27,10 +32,7 @@ export async function connectToDatabase() {
   }
 
   // set the connection options
-  const opts = {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-  };
+  const opts = {};
 
   try {
     // Connect to cluster
@@ -50,4 +52,4 @@ export async function connectToDatabase() {
     console.error('MongoDB connection error:', error);
     throw new Error('無法連接到 MongoDB 資料庫');
   }
-}
+} 

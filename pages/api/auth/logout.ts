@@ -1,4 +1,10 @@
-export default function handler(req, res) {
+import { NextApiRequest, NextApiResponse } from 'next';
+
+interface LogoutResponse {
+  message: string;
+}
+
+export default function handler(req: NextApiRequest, res: NextApiResponse<LogoutResponse>) {
   if (req.method !== 'POST') {
     return res.status(405).json({ message: 'Method not allowed' });
   }

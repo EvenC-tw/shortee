@@ -1,9 +1,25 @@
 import { DatabaseFactory, DatabaseType } from '../../lib/database/factory';
+import { NextApiRequest, NextApiResponse } from 'next';
 
 // 從環境變數取得資料庫類型，預設使用 MongoDB
-const dbType = process.env.DATABASE_TYPE || 'mongodb';
+const dbType = (process.env.DATABASE_TYPE as DatabaseType) || DatabaseType.MONGODB;
 
-export default async function handler(req, res) {
+interface ShorteeData {
+  origin: string;
+  createdAt: Date;
+}
+
+interface ApiResponse {
+  message?: string;
+  success?: boolean;
+  data?: {
+    shortee: string;
+    origin: string;
+  };
+  origin?: string;
+}
+
+export default async function handler(req: NextApiRequest, res: NextApiResponse<ApiResponse>) {
   const { method } = req;
   switch (method) {
     case 'GET': {
@@ -19,7 +35,7 @@ export default async function handler(req, res) {
   }
 }
 
-async function getShortee(req, res) {
+async function getShortee(req: NextApiRequest, res: NextApiResponse<ApiResponse>) {
   console.log(`getShortee API (${dbType}) called with query:`, req.query);
   const { shortee } = req.query;
 
@@ -48,7 +64,7 @@ async function getShortee(req, res) {
   }
 }
 
-async function addShortee(req, res) {
+async function addShortee(req: NextApiRequest, res: NextApiResponse<ApiResponse>) {
   console.log(`addShortee API (${dbType}) called with body:`, req.body);
   const { origin, shortee } = req.body;
 
@@ -60,15 +76,15 @@ async function addShortee(req, res) {
   }
 
   try {
-    let parsedOriginUrl;
+    let parsedOriginUrl: URL;
     try {
       parsedOriginUrl = new URL(origin);
       if (!isValidWebUrl(parsedOriginUrl)) {
         throw new Error('Invalid origin URL format or scheme according to server-side validation.');
       }
     } catch (urlError) {
-      console.warn(`addShortee: Invalid origin URL format: ${origin}. Error: ${urlError.message}`);
-      return res.status(400).json({ message: `無效的原始網址格式: ${urlError.message}`, success: false });
+      console.warn(`addShortee: Invalid origin URL format: ${origin}. Error: ${(urlError as Error).message}`);
+      return res.status(400).json({ message: `無效的原始網址格式: ${(urlError as Error).message}`, success: false });
     }
 
     // 移除 URL 片段（以 # 開頭的部分）以進行可達性檢查
@@ -105,13 +121,13 @@ async function addShortee(req, res) {
       );
     } catch (fetchError) {
       console.warn(
-        `addShortee: URL reachability check threw an error for ${urlForValidation}: ${fetchError.name} - ${fetchError.message}`
+        `addShortee: URL reachability check threw an error for ${urlForValidation}: ${(fetchError as Error).name} - ${(fetchError as Error).message}`
       );
       let userMessage = '無法驗證目標網址的可達性。請檢查網址是否正確，或稍後再試。';
-      if (fetchError.name === 'AbortError') {
+      if ((fetchError as Error).name === 'AbortError') {
         userMessage = '驗證目標網址超時，它可能不存在或回應過慢。';
-      } else if (fetchError.cause && fetchError.cause.code) {
-        const nodeErrorCode = fetchError.cause.code;
+      } else if ((fetchError as any).cause && (fetchError as any).cause.code) {
+        const nodeErrorCode = (fetchError as any).cause.code;
         if (nodeErrorCode === 'ENOTFOUND' || nodeErrorCode === 'EAI_AGAIN') {
           userMessage = '目標網址的主機名稱無法解析，它可能不存在。';
         }
@@ -131,7 +147,7 @@ async function addShortee(req, res) {
       });
       console.log(`addShortee: Successfully saved shortee: ${shortee}`);
     } catch (dbError) {
-      if (dbError.message === '此短網址代碼已被使用') {
+      if ((dbError as Error).message === '此短網址代碼已被使用') {
         console.warn(`addShortee: Duplicate shortee code: ${shortee}`);
         return res.status(409).json({
           message: '此短網址代碼已被使用，請重試。',
@@ -171,7 +187,7 @@ async function addShortee(req, res) {
  * @param {URL} urlObject The URL object to validate.
  * @returns {boolean} True if the URL is valid, false otherwise.
  */
-function isValidWebUrl(urlObject) {
+function isValidWebUrl(urlObject: URL): boolean {
   if (!(urlObject instanceof URL)) {
     // This case should ideally be caught by new URL() constructor failing first,
     // but as a safeguard for direct calls:
@@ -192,4 +208,4 @@ function isValidWebUrl(urlObject) {
     return false;
   }
   return true;
-}
+} 

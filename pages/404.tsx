@@ -4,22 +4,22 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/router';
 
 // Hook 用於取得前一個 state 的值
-function usePrevious(value) {
-  const ref = useRef();
+function usePrevious<T>(value: T): T | undefined {
+  const ref = useRef<T>();
   useEffect(() => {
     ref.current = value;
   }, [value]); // 只有在 value 變動時才重新執行
   return ref.current; // 回傳更新前的舊值
 }
 
-function Shortee() {
-  const [fetching, setFetching] = useState(false);
-  const [shortee, setShortee] = useState(undefined);
+function Shortee(): JSX.Element {
+  const [fetching, setFetching] = useState<boolean>(false);
+  const [shortee, setShortee] = useState<string | undefined>(undefined);
   const router = useRouter();
   const prevShortee = usePrevious(shortee);
 
   // 根據短網址代碼 (shortee) 取得原始網址並執行跳轉
-  const fetchShortee = useCallback(async () => {
+  const fetchShortee = useCallback(async (): Promise<void> => {
     if (!shortee) return; // 若 shortee 未設定則不執行
 
     setFetching(true);
@@ -56,7 +56,7 @@ function Shortee() {
       }
     } catch (error) {
       console.error("fetchShortee 函數出錯:", error); // 修改註解
-      message.error(error.message || '取得短網址時發生錯誤。');
+      message.error((error as Error).message || '取得短網址時發生錯誤。');
       // 可選：導向至一般錯誤頁面
       // router.push('/error');
     } finally {
@@ -79,4 +79,4 @@ function Shortee() {
   return <></>;
 }
 
-export default Shortee;
+export default Shortee; 

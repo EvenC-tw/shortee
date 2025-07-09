@@ -8,13 +8,25 @@ import uuidBase62 from 'uuid62';
 
 const { Paragraph, Text } = Typography;
 
+interface User {
+  name: string;
+  [key: string]: any;
+}
+
+interface MetaData {
+  type: string;
+  url: string;
+  title: string;
+  description: string;
+}
+
 /**
  * 檢查給定的 URL 物件是否為有效的 Web URL (http 或 https)
  * 並且主機名稱包含 TLD (由點 . 表示) 且非 localhost。
  * @param {URL} urlObject - 要驗證的 URL 物件。
  * @returns {boolean} 如果有效則為 true，否則為 false。
  */
-function isValidWebUrl(urlObject) {
+function isValidWebUrl(urlObject: URL): boolean {
   if (!(urlObject instanceof URL)) {
     console.warn('isValidWebUrl: 傳入的不是有效的 URL 物件');
     return false;
@@ -35,28 +47,28 @@ function isValidWebUrl(urlObject) {
   return true;
 }
 
-function Home() {
+function Home(): JSX.Element {
   const { message: messageApi } = App.useApp();
 
-  const [shorteeing, setShorteeing] = useState(false);
-  const [url, setUrl] = useState(null);
-  const [isUrlValid, setIsUrlValid] = useState(false);
-  const [shortee, setShortee] = useState('');
+  const [shorteeing, setShorteeing] = useState<boolean>(false);
+  const [url, setUrl] = useState<URL | null>(null);
+  const [isUrlValid, setIsUrlValid] = useState<boolean>(false);
+  const [shortee, setShortee] = useState<string>('');
 
-  const [urlInput, setUrlInput] = useState('');
-  const [validateStatus, setValidateStatus] = useState('');
-  const [helpMessage, setHelpMessage] = useState('');
+  const [urlInput, setUrlInput] = useState<string>('');
+  const [validateStatus, setValidateStatus] = useState<'' | 'validating' | 'success' | 'error' | 'warning'>('');
+  const [helpMessage, setHelpMessage] = useState<string>('');
 
-  // 用戶狀態
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  // 使用者狀態
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
 
-  // 檢查用戶登入狀態
+  // 檢查使用者登入狀態
   useEffect(() => {
     checkAuthStatus();
   }, []);
 
-  const checkAuthStatus = async () => {
+  const checkAuthStatus = async (): Promise<void> => {
     try {
       const response = await fetch('/api/auth/me');
       if (response.ok) {
@@ -70,11 +82,11 @@ function Home() {
     }
   };
 
-  const handleLineLogin = () => {
+  const handleLineLogin = (): void => {
     window.location.href = '/api/auth/line/login';
   };
 
-  const handleLogout = async () => {
+  const handleLogout = async (): Promise<void> => {
     try {
       await fetch('/api/auth/logout', { method: 'POST' });
       setUser(null);
@@ -85,14 +97,14 @@ function Home() {
     }
   };
 
-  const meta = {
+  const meta: MetaData = {
     type: 'website',
     url: 'https://shortee.evenc.studio/',
     title: 'Shortee - 您的縮網址小幫手',
     description: '輕鬆產生簡短、易於分享的網址。由 evenc.studio 提供。',
   };
 
-  function validateAndSetUrl(inputValue) {
+  function validateAndSetUrl(inputValue: string): void {
     const trimmedValue = inputValue.trim();
 
     if (!trimmedValue) {
@@ -118,7 +130,7 @@ function Home() {
       setHelpMessage('合法網址格式');
       console.log('有效 URL (直接解析):', parsedUrl.href);
     } catch (error) {
-      console.warn('初步驗證失敗:', trimmedValue, error.message);
+      console.warn('初步驗證失敗:', trimmedValue, (error as Error).message);
       if (!trimmedValue.toLowerCase().startsWith('http://') && !trimmedValue.toLowerCase().startsWith('https://')) {
         setHelpMessage('嘗試加上 https:// 進行驗證...');
         try {
@@ -133,7 +145,7 @@ function Home() {
           setHelpMessage('合法網址格式 (自動套用 https)');
           console.log('有效 URL (添加 https):', parsedHttpsUrl.href);
         } catch (httpsError) {
-          console.warn('添加 HTTPS 驗證失敗:', `https://${trimmedValue}`, httpsError.message);
+          console.warn('添加 HTTPS 驗證失敗:', `https://${trimmedValue}`, (httpsError as Error).message);
           setHelpMessage('嘗試加上 http:// 進行驗證...');
           try {
             const httpUrlString = `http://${trimmedValue}`;
@@ -147,7 +159,7 @@ function Home() {
             setHelpMessage('合法網址格式 (自動套用 http)');
             console.log('有效 URL (添加 http):', parsedHttpUrl.href);
           } catch (httpError) {
-            console.warn('添加 HTTP 驗證失敗:', `http://${trimmedValue}`, httpError.message);
+            console.warn('添加 HTTP 驗證失敗:', `http://${trimmedValue}`, (httpError as Error).message);
             setUrl(null);
             setIsUrlValid(false);
             setValidateStatus('error');
@@ -164,13 +176,13 @@ function Home() {
     }
   }
 
-  const handleInputChange = (e) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
     const currentValue = e.target.value;
     setUrlInput(currentValue);
     validateAndSetUrl(currentValue);
   };
 
-  async function postShortee() {
+  async function postShortee(): Promise<void> {
     setShorteeing(true);
     setShortee('');
 
@@ -206,7 +218,7 @@ function Home() {
       messageApi.success('短網址已成功產生！');
     } catch (error) {
       console.error('postShortee 函數處理錯誤:', error);
-      messageApi.error(error.message || '建立短網址時發生預期外的錯誤，請稍後再試。');
+      messageApi.error((error as Error).message || '建立短網址時發生預期外的錯誤，請稍後再試。');
     } finally {
       setShorteeing(false);
     }
@@ -236,7 +248,7 @@ function Home() {
       </Head>
       <Row justify="center" style={{ width: '100%' }}>
         <Col xs={24} sm={20} md={16} lg={12} xl={10}>
-          {/* 用戶狀態區域 */}
+          {/* 使用者狀態區域 */}
           <Row justify="end" style={{ marginBottom: 16 }}>
             {!loading && (
               user ? (
@@ -326,4 +338,4 @@ function Home() {
   );
 }
 
-export default Home;
+export default Home; 

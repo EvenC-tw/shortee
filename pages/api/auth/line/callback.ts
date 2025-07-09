@@ -1,6 +1,47 @@
+import { NextApiRequest, NextApiResponse } from 'next';
+
 import jwt from 'jsonwebtoken';
 
-export default async function handler(req, res) {
+interface LineTokenResponse {
+  access_token: string;
+  id_token: string;
+  token_type: string;
+  expires_in: number;
+  refresh_token?: string;
+}
+
+interface LineProfile {
+  userId: string;
+  displayName: string;
+  pictureUrl?: string;
+  statusMessage?: string;
+}
+
+interface DecodedIdToken {
+  iss: string;
+  sub: string;
+  aud: string;
+  exp: number;
+  iat: number;
+  nonce: string;
+  amr: string[];
+  name: string;
+  picture: string;
+  email?: string;
+}
+
+interface UserData {
+  lineId: string;
+  name: string;
+  email: string | null;
+  picture: string | null;
+}
+
+interface ErrorResponse {
+  message: string;
+}
+
+export default async function handler(req: NextApiRequest, res: NextApiResponse<ErrorResponse>) {
   if (req.method !== 'GET') {
     return res.status(405).json({ message: 'Method not allowed' });
   }
@@ -45,7 +86,7 @@ export default async function handler(req, res) {
       },
       body: new URLSearchParams({
         grant_type: 'authorization_code',
-        code: code,
+        code: code as string,
         redirect_uri: LINE_CALLBACK_URL,
         client_id: LINE_CHANNEL_ID,
         client_secret: LINE_CHANNEL_SECRET,
@@ -57,13 +98,13 @@ export default async function handler(req, res) {
       return res.redirect('/?error=token_request_failed');
     }
 
-    const tokenData = await tokenResponse.json();
+    const tokenData: LineTokenResponse = await tokenResponse.json();
     const { access_token, id_token } = tokenData;
 
     // 驗證 ID token
-    const decodedIdToken = jwt.verify(id_token, LINE_CHANNEL_SECRET, { algorithms: ['HS256'] });
+    const decodedIdToken = jwt.verify(id_token, LINE_CHANNEL_SECRET, { algorithms: ['HS256'] }) as DecodedIdToken;
     
-    // 取得用戶資料
+    // 取得使用者資料
     const profileResponse = await fetch('https://api.line.me/v2/profile', {
       headers: {
         'Authorization': `Bearer ${access_token}`,
@@ -75,10 +116,10 @@ export default async function handler(req, res) {
       return res.redirect('/?error=profile_request_failed');
     }
 
-    const profile = await profileResponse.json();
+    const profile: LineProfile = await profileResponse.json();
 
-    // 建立用戶資料
-    const userData = {
+    // 建立使用者資料
+    const userData: UserData = {
       lineId: profile.userId,
       name: profile.displayName,
       email: decodedIdToken.email || null,

@@ -1,6 +1,29 @@
+import { NextApiRequest, NextApiResponse } from 'next';
+
 import jwt from 'jsonwebtoken';
 
-export default function handler(req, res) {
+interface DecodedToken {
+  userId: string;
+  name: string;
+  email: string;
+  iat?: number;
+  exp?: number;
+}
+
+interface UserResponse {
+  user: {
+    userId: string;
+    name: string;
+    email: string;
+  };
+  authenticated: boolean;
+}
+
+interface ErrorResponse {
+  message: string;
+}
+
+export default function handler(req: NextApiRequest, res: NextApiResponse<UserResponse | ErrorResponse>) {
   if (req.method !== 'GET') {
     return res.status(405).json({ message: 'Method not allowed' });
   }
@@ -22,7 +45,7 @@ export default function handler(req, res) {
     }
 
     // 驗證 JWT token
-    const decoded = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] });
+    const decoded = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] }) as DecodedToken;
 
     res.status(200).json({
       user: {

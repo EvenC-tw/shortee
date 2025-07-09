@@ -1,4 +1,10 @@
-export default function handler(req, res) {
+import { NextApiRequest, NextApiResponse } from 'next';
+
+interface ErrorResponse {
+  message: string;
+}
+
+export default function handler(req: NextApiRequest, res: NextApiResponse<ErrorResponse>) {
   if (req.method !== 'GET') {
     return res.status(405).json({ message: 'Method not allowed' });
   }
