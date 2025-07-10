@@ -1,4 +1,5 @@
-import { App, ConfigProvider, Layout, Space, Switch, Typography, theme } from 'antd';
+import { App, Avatar, Button, ConfigProvider, Dropdown, Layout, Menu, Space, Typography, theme } from 'antd';
+import { HistoryOutlined, LogoutOutlined, MenuOutlined, UserOutlined } from '@ant-design/icons';
 import React, { useEffect, useState } from 'react';
 
 import { AppProps } from 'next/app';
@@ -28,6 +29,8 @@ const GlobalStyle = createGlobalStyle<GlobalStyleProps>`
 
 function MyApp({ Component, pageProps }: AppProps) {
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const [drawerVisible, setDrawerVisible] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
     const storedTheme = localStorage.getItem('appTheme');
@@ -46,6 +49,13 @@ function MyApp({ Component, pageProps }: AppProps) {
   useEffect(() => {
     localStorage.setItem('appTheme', isDarkMode ? 'dark' : 'light');
   }, [isDarkMode]);
+
+  useEffect(() => {
+    const checkScreenSize = () => setIsMobile(window.innerWidth <= 768);
+    checkScreenSize();
+    window.addEventListener('resize', checkScreenSize);
+    return () => window.removeEventListener('resize', checkScreenSize);
+  }, []);
 
   const toggleTheme = () => {
     setIsDarkMode(!isDarkMode);
@@ -84,6 +94,28 @@ function MyApp({ Component, pageProps }: AppProps) {
 
   const appVersion = process.env.APP_VERSION;
 
+  const menuItems = [
+    {
+      key: 'theme',
+      icon: <span>{isDarkMode ? '☀️' : '🌙'}</span>,
+      label: (
+        <span onClick={toggleTheme}>{isDarkMode ? '切換為淺色模式' : '切換為深色模式'}</span>
+      ),
+    },
+    {
+      key: 'history',
+      icon: <HistoryOutlined />,
+      label: <span>歷史記錄</span>,
+      // 可根據實際需求加上 onClick 或連結
+    },
+    {
+      key: 'profile',
+      icon: <UserOutlined />,
+      label: <span>個人中心</span>,
+      // 可根據登入狀態顯示登入/登出
+    },
+  ];
+
   return (
     <>
       <GlobalStyle isDarkMode={isDarkMode} />
@@ -112,11 +144,13 @@ function MyApp({ Component, pageProps }: AppProps) {
                 >
                   Shortee
                 </Title>
-                <Switch checkedChildren="🌙" unCheckedChildren="☀️" checked={isDarkMode} onChange={toggleTheme} />
+                {!isMobile && (
+                  <Button shape="circle" icon={<MenuOutlined />} onClick={() => setDrawerVisible(true)} />
+                )}
               </Space>
             </Header>
             <Content style={contentStyle}>
-              <Component {...pageProps} />
+              <Component {...pageProps} isDarkMode={isDarkMode} toggleTheme={toggleTheme} drawerVisible={drawerVisible} setDrawerVisible={setDrawerVisible} />
             </Content>
             <Footer style={footerStyle}>
               <Paragraph>

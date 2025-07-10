@@ -1,9 +1,10 @@
-import { App, Avatar, Badge, Button, Card, Col, Drawer, Form, Input, List, Row, Space, Tabs, Tag, Typography } from 'antd';
-import { HistoryOutlined, HomeOutlined, LinkOutlined, LogoutOutlined, MenuOutlined, SettingOutlined, UserOutlined } from '@ant-design/icons';
+import { App, Avatar, Badge, Button, Card, Col, Drawer, Form, Input, List, Row, Space, Switch, Tabs, Tag, Typography } from 'antd';
+import { EyeOutlined, HistoryOutlined, HomeOutlined, LinkOutlined, LogoutOutlined, MenuOutlined, SettingOutlined, UserOutlined } from '@ant-design/icons';
 import { useCallback, useEffect, useState } from 'react';
 
 import Head from 'next/head';
 import Link from 'next/link';
+import dayjs from 'dayjs';
 import uuidBase62 from 'uuid62';
 
 const { Paragraph, Text, Title } = Typography;
@@ -55,7 +56,7 @@ function isValidWebUrl(urlObject: URL): boolean {
   return true;
 }
 
-function Home(): JSX.Element {
+function Home({ isDarkMode, toggleTheme, drawerVisible, setDrawerVisible }): JSX.Element {
   const { message: messageApi } = App.useApp();
 
   const [shorteeing, setShorteeing] = useState<boolean>(false);
@@ -75,9 +76,9 @@ function Home(): JSX.Element {
   const [loadingHistory, setLoadingHistory] = useState<boolean>(false);
 
   // UI 狀態
-  const [drawerVisible, setDrawerVisible] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<string>('home');
   const [isMobile, setIsMobile] = useState<boolean>(false);
+  const [showOriginIndex, setShowOriginIndex] = useState<number | null>(null);
 
   // 檢查螢幕尺寸
   useEffect(() => {
@@ -300,10 +301,63 @@ function Home(): JSX.Element {
     });
   };
 
-  // 桌面版滑出介面內容
-  const DesktopDrawerContent = () => (
+  // 1. 複製短網址功能（共用）
+  function copyShortUrl(shortUrl: string) {
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(shortUrl)
+        .then(() => messageApi.success('短網址已複製'))
+        .catch(() => fallbackCopy(shortUrl));
+    } else {
+      fallbackCopy(shortUrl);
+    }
+  }
+  function fallbackCopy(text: string) {
+    try {
+      const input = document.createElement('input');
+      input.value = text;
+      document.body.appendChild(input);
+      input.select();
+      document.execCommand('copy');
+      document.body.removeChild(input);
+      messageApi.success('短網址已複製');
+    } catch {
+      messageApi.error('無法複製，請手動選取');
+    }
+  }
+
+  // 1. 歷史記錄分組
+  function groupHistoryByDate(history: ShorteeHistory[]) {
+    const groups: { [key: string]: ShorteeHistory[] } = {};
+    history.forEach(item => {
+      const d = dayjs(item.createdAt);
+      let label = d.isSame(dayjs(), 'day') ? 'Today'
+        : d.isSame(dayjs().subtract(1, 'day'), 'day') ? 'Yesterday'
+        : d.format('YYYY/MM/DD');
+      if (!groups[label]) groups[label] = [];
+      groups[label].push(item);
+    });
+    // 依照日期由近到遠排序
+    const sorted = Object.entries(groups).sort((a, b) => {
+      const getDate = (l: string) => l === 'Today' ? dayjs() : l === 'Yesterday' ? dayjs().subtract(1, 'day') : dayjs(l, 'YYYY/MM/DD');
+      return getDate(b[0]).valueOf() - getDate(a[0]).valueOf();
+    });
+    return sorted;
+  }
+
+  // 2. 桌面版滑出介面內容
+  const DesktopDrawerContent = ({ isDarkMode, toggleTheme }) => (
     <div style={{ padding: '20px 0' }}>
       <Space direction="vertical" size="large" style={{ width: '100%' }}>
+        {/* 主題切換 */}
+        <div style={{ textAlign: 'center', marginBottom: 12 }}>
+          <Button
+            type="default"
+            icon={<span>{isDarkMode ? '☀️' : '🌙'}</span>}
+            onClick={toggleTheme}
+          >
+            {isDarkMode ? '切換為淺色模式' : '切換為深色模式'}
+          </Button>
+        </div>
         {/* 使用者資訊 */}
         {user ? (
           <div style={{ textAlign: 'center', padding: '20px 0' }}>
@@ -342,58 +396,62 @@ function Home(): JSX.Element {
             <Card loading={loadingHistory} style={{ maxHeight: '60vh', overflow: 'auto' }}>
               {history.length > 0 ? (
                 <List
-                  dataSource={history}
-                  renderItem={(item) => (
-                    <List.Item
-                      actions={[
-                        <Link
-                          key="visit"
-                          href={`${location.origin}/${item.shorteeCode}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          <Button type="link" icon={<LinkOutlined />} size="small">
-                            訪問
-                          </Button>
-                        </Link>,
-                        <Button
-                          key="copy"
-                          type="link"
-                          size="small"
-                          onClick={() => {
-                            navigator.clipboard.writeText(`${location.origin}/${item.shorteeCode}`);
-                            messageApi.success('已複製到剪貼簿');
-                          }}
-                        >
-                          複製
-                        </Button>,
-                      ]}
-                    >
-                      <List.Item.Meta
-                        title={
-                          <Space>
-                            <Link
-                              href={`${location.origin}/${item.shorteeCode}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                            >
-                              {item.title || '未命名'}
-                            </Link>
-                            <Tag color="blue">{item.shorteeCode}</Tag>
-                          </Space>
-                        }
-                        description={
-                          <Space direction="vertical" size="small" style={{ width: '100%' }}>
-                            <Text type="secondary" style={{ fontSize: '12px' }}>
-                              {item.origin}
-                            </Text>
-                            <Text type="secondary" style={{ fontSize: '12px' }}>
-                              建立於 {formatDate(item.createdAt)}
-                            </Text>
-                          </Space>
-                        }
-                      />
-                    </List.Item>
+                  dataSource={groupHistoryByDate(history)}
+                  renderItem={([label, items]) => (
+                    <>
+                      {/* 將分組標題區塊改為分隔線中間顯示 */}
+                      <div style={{ display: 'flex', alignItems: 'center', margin: '16px 0 4px' }}>
+                        <div style={{ flex: 1, height: 1, background: isDarkMode ? '#333' : '#eee' }} />
+                        <span style={{ margin: '0 12px', color: '#888', fontWeight: 600, fontSize: 15 }}>{label}</span>
+                        <div style={{ flex: 1, height: 1, background: isDarkMode ? '#333' : '#eee' }} />
+                      </div>
+                      {items.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).map((item, index) => (
+                        <List.Item key={item.shorteeCode}>
+                          <div style={{ width: '100%' }}>
+                            {/* 第一行：標題、建立時間、複製短網址 */}
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <span style={{ fontWeight: 500, fontSize: 15, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.title || '未命名'}</span>
+                                <span style={{ color: '#888', fontSize: 12, marginLeft: 8 }}>{formatDate(item.createdAt)}</span>
+                              </div>
+                              <Button
+                                type="text"
+                                icon={<LinkOutlined />}
+                                size="small"
+                                onClick={() => copyShortUrl(`${location.origin}/${item.shorteeCode}`)}
+                                style={{ marginLeft: 8 }}
+                              />
+                            </div>
+                            {/* 第二行：顯示完整網址按鈕與展開區塊 */}
+                            <div style={{ display: 'flex', alignItems: 'center', marginTop: 4 }}>
+                              <Button
+                                type="text"
+                                icon={<EyeOutlined />}
+                                size="small"
+                                onClick={() => setShowOriginIndex(showOriginIndex === index ? null : index)}
+                              >
+                                {showOriginIndex === index ? '隱藏網址' : '顯示完整網址'}
+                              </Button>
+                            </div>
+                            {showOriginIndex === index && (
+                              <div style={{
+                                overflowX: 'auto',
+                                wordBreak: 'break-all',
+                                whiteSpace: 'pre-line',
+                                fontSize: 12,
+                                color: '#888',
+                                border: '1px solid #eee',
+                                borderRadius: 4,
+                                padding: '4px 8px',
+                                marginTop: 2,
+                              }}>
+                                {item.origin}
+                              </div>
+                            )}
+                          </div>
+                        </List.Item>
+                      ))}
+                    </>
                   )}
                 />
               ) : (
@@ -408,15 +466,15 @@ function Home(): JSX.Element {
     </div>
   );
 
-  // 手機版底部導航
+  // 2. 手機版底部導航
   const MobileBottomNav = () => (
     <div style={{
       position: 'fixed',
       bottom: 0,
       left: 0,
       right: 0,
-      backgroundColor: '#fff',
-      borderTop: '1px solid #f0f0f0',
+      backgroundColor: isDarkMode ? '#1f1f1f' : '#fff',
+      borderTop: isDarkMode ? '1px solid #333' : '1px solid #f0f0f0',
       padding: '8px 0',
       zIndex: 1000,
     }}>
@@ -424,57 +482,32 @@ function Home(): JSX.Element {
         <Col span={8} style={{ textAlign: 'center' }}>
           <Button
             type="text"
-            icon={<HomeOutlined />}
+            icon={<HomeOutlined style={{ fontSize: 24 }} />}
             onClick={() => setActiveTab('home')}
-            style={{
-              color: activeTab === 'home' ? '#1890ff' : '#666',
-              height: 'auto',
-              padding: '8px 0',
-            }}
-          >
-            <div style={{ fontSize: '12px' }}>首頁</div>
-          </Button>
+            style={{ color: activeTab === 'home' ? '#1890ff' : '#666', height: 'auto', padding: '8px 0' }}
+          />
         </Col>
         <Col span={8} style={{ textAlign: 'center' }}>
           <Button
             type="text"
-            icon={<HistoryOutlined />}
+            icon={<HistoryOutlined style={{ fontSize: 24 }} />}
             onClick={() => setActiveTab('history')}
-            style={{
-              color: activeTab === 'history' ? '#1890ff' : '#666',
-              height: 'auto',
-              padding: '8px 0',
-            }}
-          >
-            <div style={{ fontSize: '12px' }}>
-              歷史記錄
-              {user && history.length > 0 && (
-                <Badge count={history.length} size="small" style={{ marginLeft: 4 }} />
-              )}
-            </div>
-          </Button>
+            style={{ color: activeTab === 'history' ? '#1890ff' : '#666', height: 'auto', padding: '8px 0' }}
+          />
         </Col>
         <Col span={8} style={{ textAlign: 'center' }}>
           <Button
             type="text"
-            icon={user ? <UserOutlined /> : <SettingOutlined />}
+            icon={user ? <UserOutlined style={{ fontSize: 24 }} /> : <SettingOutlined style={{ fontSize: 24 }} />}
             onClick={() => setActiveTab('profile')}
-            style={{
-              color: activeTab === 'profile' ? '#1890ff' : '#666',
-              height: 'auto',
-              padding: '8px 0',
-            }}
-          >
-            <div style={{ fontSize: '12px' }}>
-              {user ? '個人' : '登入'}
-            </div>
-          </Button>
+            style={{ color: activeTab === 'profile' ? '#1890ff' : '#666', height: 'auto', padding: '8px 0' }}
+          />
         </Col>
       </Row>
     </div>
   );
 
-  // 手機版內容區域
+  // 3. 手機版內容區域
   const MobileContent = () => {
     switch (activeTab) {
       case 'home':
@@ -545,63 +578,69 @@ function Home(): JSX.Element {
                   <Space>
                     <HistoryOutlined />
                     <span>歷史記錄</span>
+                    <span style={{ color: '#888', fontSize: 13 }}>({history.length})</span>
                   </Space>
                 }
                 loading={loadingHistory}
               >
                 {history.length > 0 ? (
                   <List
-                    dataSource={history}
-                    renderItem={(item) => (
-                      <List.Item
-                        actions={[
-                          <Link
-                            key="visit"
-                            href={`${location.origin}/${item.shorteeCode}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                          >
-                            <Button type="link" icon={<LinkOutlined />}>
-                              訪問
-                            </Button>
-                          </Link>,
-                          <Button
-                            key="copy"
-                            type="link"
-                            onClick={() => {
-                              navigator.clipboard.writeText(`${location.origin}/${item.shorteeCode}`);
-                              messageApi.success('已複製到剪貼簿');
-                            }}
-                          >
-                            複製
-                          </Button>,
-                        ]}
-                      >
-                        <List.Item.Meta
-                          title={
-                            <Space>
-                              <Link
-                                href={`${location.origin}/${item.shorteeCode}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                              >
-                                {item.title || '未命名'}
-                              </Link>
-                              <Tag color="blue">{item.shorteeCode}</Tag>
-                            </Space>
-                          }
-                          description={
-                            <Space direction="vertical" size="small" style={{ width: '100%' }}>
-                              <Text type="secondary" style={{ fontSize: '12px' }}>
-                                {item.origin}
-                              </Text>
-                              <Text type="secondary" style={{ fontSize: '12px' }}>
-                                建立於 {formatDate(item.createdAt)}
-                              </Text>
-                            </Space>
-                          }
-                        />
-                      </List.Item>
+                    dataSource={groupHistoryByDate(history)}
+                    renderItem={([label, items]) => (
+                      <>
+                        {/* 將分組標題區塊改為分隔線中間顯示 */}
+                        <div style={{ display: 'flex', alignItems: 'center', margin: '16px 0 4px' }}>
+                          <div style={{ flex: 1, height: 1, background: isDarkMode ? '#333' : '#eee' }} />
+                          <span style={{ margin: '0 12px', color: '#888', fontWeight: 600, fontSize: 15 }}>{label}</span>
+                          <div style={{ flex: 1, height: 1, background: isDarkMode ? '#333' : '#eee' }} />
+                        </div>
+                        {items.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).map((item, index) => (
+                          <List.Item key={item.shorteeCode}>
+                            <div style={{ width: '100%' }}>
+                              {/* 第一行：標題、建立時間、複製短網址 */}
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                  <span style={{ fontWeight: 500, fontSize: 15, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.title || '未命名'}</span>
+                                  <span style={{ color: '#888', fontSize: 12, marginLeft: 8 }}>{formatDate(item.createdAt)}</span>
+                                </div>
+                                <Button
+                                  type="text"
+                                  icon={<LinkOutlined />}
+                                  size="small"
+                                  onClick={() => copyShortUrl(`${location.origin}/${item.shorteeCode}`)}
+                                  style={{ marginLeft: 8 }}
+                                />
+                              </div>
+                              {/* 第二行：顯示完整網址按鈕與展開區塊 */}
+                              <div style={{ display: 'flex', alignItems: 'center', marginTop: 4 }}>
+                                <Button
+                                  type="text"
+                                  icon={<EyeOutlined />}
+                                  size="small"
+                                  onClick={() => setShowOriginIndex(showOriginIndex === index ? null : index)}
+                                >
+                                  {showOriginIndex === index ? '隱藏網址' : '顯示完整網址'}
+                                </Button>
+                              </div>
+                              {showOriginIndex === index && (
+                                <div style={{
+                                  overflowX: 'auto',
+                                  wordBreak: 'break-all',
+                                  whiteSpace: 'pre-line',
+                                  fontSize: 12,
+                                  color: '#888',
+                                  border: '1px solid #eee',
+                                  borderRadius: 4,
+                                  padding: '4px 8px',
+                                  marginTop: 2,
+                                }}>
+                                  {item.origin}
+                                </div>
+                              )}
+                            </div>
+                          </List.Item>
+                        ))}
+                      </>
                     )}
                   />
                 ) : (
@@ -632,6 +671,17 @@ function Home(): JSX.Element {
       case 'profile':
         return (
           <div style={{ paddingBottom: '80px' }}>
+            {activeTab === 'profile' && (
+              <div style={{ textAlign: 'center', marginBottom: 12 }}>
+                <Switch
+                  checked={isDarkMode}
+                  onChange={toggleTheme}
+                  checkedChildren={<span>🌙</span>}
+                  unCheckedChildren={<span>☀️</span>}
+                  style={{ background: isDarkMode ? '#333' : '#eee' }}
+                />
+              </div>
+            )}
             {user ? (
               <Card>
                 <div style={{ textAlign: 'center', padding: '20px 0' }}>
@@ -704,25 +754,6 @@ function Home(): JSX.Element {
           <Row justify="center" style={{ width: '100%' }}>
             <Col xs={24} sm={20} md={16} lg={12} xl={10}>
               {/* 使用者狀態區域 */}
-              <Row justify="end" style={{ marginBottom: 16 }}>
-                {!loading && (
-                  user ? (
-                    <Button
-                      icon={<MenuOutlined />}
-                      onClick={() => setDrawerVisible(true)}
-                      style={{ borderRadius: '50%', width: 40, height: 40 }}
-                    />
-                  ) : (
-                    <Button 
-                      type="primary" 
-                      onClick={handleLineLogin}
-                      style={{ backgroundColor: '#00B900', borderColor: '#00B900' }}
-                    >
-                      使用 Line 登入
-                    </Button>
-                  )
-                )}
-              </Row>
               
               <Space direction="vertical" size="large" style={{ width: '100%' }}>
                 <Form.Item validateStatus={validateStatus} help={helpMessage} style={{ marginBottom: 0 }}>
@@ -788,7 +819,7 @@ function Home(): JSX.Element {
             open={drawerVisible}
             width={320}
           >
-            <DesktopDrawerContent />
+            <DesktopDrawerContent isDarkMode={isDarkMode} toggleTheme={toggleTheme} />
           </Drawer>
         </>
       )}
