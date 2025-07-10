@@ -1,12 +1,13 @@
-import { App, Avatar, Button, Card, Col, Dropdown, Form, Input, List, Row, Space, Tag, Typography } from 'antd';
-import { HistoryOutlined, LinkOutlined, LogoutOutlined, UserOutlined } from '@ant-design/icons';
-import { useEffect, useState } from 'react';
+import { App, Avatar, Badge, Button, Card, Col, Drawer, Form, Input, List, Row, Space, Tabs, Tag, Typography } from 'antd';
+import { HistoryOutlined, HomeOutlined, LinkOutlined, LogoutOutlined, MenuOutlined, SettingOutlined, UserOutlined } from '@ant-design/icons';
+import { useCallback, useEffect, useState } from 'react';
 
 import Head from 'next/head';
 import Link from 'next/link';
 import uuidBase62 from 'uuid62';
 
 const { Paragraph, Text, Title } = Typography;
+const { TabPane } = Tabs;
 
 interface User {
   name: string;
@@ -73,35 +74,24 @@ function Home(): JSX.Element {
   const [history, setHistory] = useState<ShorteeHistory[]>([]);
   const [loadingHistory, setLoadingHistory] = useState<boolean>(false);
 
-  // 檢查使用者登入狀態
+  // UI 狀態
+  const [drawerVisible, setDrawerVisible] = useState<boolean>(false);
+  const [activeTab, setActiveTab] = useState<string>('home');
+  const [isMobile, setIsMobile] = useState<boolean>(false);
+
+  // 檢查螢幕尺寸
   useEffect(() => {
-    checkAuthStatus();
+    const checkScreenSize = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    
+    checkScreenSize();
+    window.addEventListener('resize', checkScreenSize);
+    
+    return () => window.removeEventListener('resize', checkScreenSize);
   }, []);
 
-  // 當使用者登入狀態改變時，載入歷史記錄
-  useEffect(() => {
-    if (user) {
-      loadHistory();
-    } else {
-      setHistory([]);
-    }
-  }, [user]);
-
-  const checkAuthStatus = async (): Promise<void> => {
-    try {
-      const response = await fetch('/api/auth/me');
-      if (response.ok) {
-        const data = await response.json();
-        setUser(data.user);
-      }
-    } catch (error) {
-      console.error('Auth check failed:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadHistory = async (): Promise<void> => {
+  const loadHistory = useCallback(async (): Promise<void> => {
     if (!user) return;
     
     setLoadingHistory(true);
@@ -117,6 +107,34 @@ function Home(): JSX.Element {
     } finally {
       setLoadingHistory(false);
     }
+  }, [user, messageApi]);
+
+  // 檢查使用者登入狀態
+  useEffect(() => {
+    checkAuthStatus();
+  }, []);
+
+  // 當使用者登入狀態改變時，載入歷史記錄
+  useEffect(() => {
+    if (user) {
+      loadHistory();
+    } else {
+      setHistory([]);
+    }
+  }, [user, loadHistory]);
+
+  const checkAuthStatus = async (): Promise<void> => {
+    try {
+      const response = await fetch('/api/auth/me');
+      if (response.ok) {
+        const data = await response.json();
+        setUser(data.user);
+      }
+    } catch (error) {
+      console.error('Auth check failed:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleLineLogin = (): void => {
@@ -128,6 +146,9 @@ function Home(): JSX.Element {
       await fetch('/api/auth/logout', { method: 'POST' });
       setUser(null);
       messageApi.success('已成功登出');
+      if (isMobile) {
+        setActiveTab('home');
+      }
     } catch (error) {
       console.error('Logout failed:', error);
       messageApi.error('登出失敗');
@@ -279,127 +300,246 @@ function Home(): JSX.Element {
     });
   };
 
-  return (
-    <>
-      <Head>
-        <title>{meta.title}</title>
-        <meta name="description" content={meta.description} />
-
-        {/* Open Graph / Facebook */}
-        <meta property="og:type" content="website" />
-        <meta property="og:url" content={meta.url} />
-        <meta property="og:title" content={meta.title} />
-        <meta property="og:description" content={meta.description} />
-        {/* <meta property="og:image" content="https://shortee.evenc.studio/og-image.png" /> */}
-        {/* 請替換成您的圖片網址 */}
-
-        {/* X */}
-        <meta property="x:card" content="summary_large_image" />
-        <meta property="x:url" content={meta.url} />
-        <meta property="x:title" content={meta.title} />
-        <meta property="x:description" content={meta.description} />
-        {/* <meta property="x:image" content="https://shortee.evenc.studio/x-image.png" /> */}
-        {/* 請替換成您的圖片網址 */}
-      </Head>
-      <Row justify="center" style={{ width: '100%' }}>
-        <Col xs={24} sm={20} md={16} lg={12} xl={10}>
-          {/* 使用者狀態區域 */}
-          <Row justify="end" style={{ marginBottom: 16 }}>
-            {!loading && (
-              user ? (
-                <Dropdown
-                  menu={{
-                    items: [
-                      {
-                        key: 'profile',
-                        label: `歡迎，${user.name}`,
-                        disabled: true,
-                      },
-                      {
-                        type: 'divider',
-                      },
-                      {
-                        key: 'logout',
-                        label: '登出',
-                        icon: <LogoutOutlined />,
-                        onClick: handleLogout,
-                      },
-                    ],
-                  }}
-                  placement="bottomRight"
-                >
-                  <Avatar 
-                    style={{ cursor: 'pointer' }}
-                    icon={<UserOutlined />}
-                  />
-                </Dropdown>
-              ) : (
-                <Button 
-                  type="primary" 
-                  onClick={handleLineLogin}
-                  style={{ backgroundColor: '#00B900', borderColor: '#00B900' }}
-                >
-                  使用 Line 登入
-                </Button>
-              )
-            )}
-          </Row>
-          
-          <Space direction="vertical" size="large" style={{ width: '100%' }}>
-            <Form.Item validateStatus={validateStatus} help={helpMessage} style={{ marginBottom: 0 }}>
-              <Input
-                size="large"
-                addonBefore={<Text>(https://)</Text>}
-                placeholder="請在此輸入網址..."
-                value={urlInput}
-                onChange={handleInputChange}
-                onKeyDown={({ key }) => key === 'Enter' && isUrlValid && !shorteeing && postShortee()}
-                style={{ flexGrow: 1 }}
-              />
-            </Form.Item>
-            
-            {/* 標題輸入欄位 - 僅在登入時顯示 */}
-            {user && (
-              <Input
-                placeholder="為這個短網址添加標題 (選填)"
-                value={titleInput}
-                onChange={(e) => setTitleInput(e.target.value)}
-                onKeyDown={({ key }) => key === 'Enter' && isUrlValid && !shorteeing && postShortee()}
-              />
-            )}
-            
-            <Button
-              size="large"
-              type="primary"
-              onClick={postShortee}
-              loading={shorteeing}
-              disabled={!isUrlValid || shorteeing}
-              style={{ width: '100%' }}
+  // 桌面版滑出介面內容
+  const DesktopDrawerContent = () => (
+    <div style={{ padding: '20px 0' }}>
+      <Space direction="vertical" size="large" style={{ width: '100%' }}>
+        {/* 使用者資訊 */}
+        {user ? (
+          <div style={{ textAlign: 'center', padding: '20px 0' }}>
+            <Avatar size={64} icon={<UserOutlined />} />
+            <div style={{ marginTop: 12 }}>
+              <Text strong>{user.name}</Text>
+            </div>
+            <Button 
+              type="text" 
+              icon={<LogoutOutlined />}
+              onClick={handleLogout}
+              style={{ marginTop: 8 }}
             >
-              Shortee!
+              登出
             </Button>
+          </div>
+        ) : (
+          <div style={{ textAlign: 'center', padding: '20px 0' }}>
+            <Button 
+              type="primary" 
+              size="large"
+              onClick={handleLineLogin}
+              style={{ backgroundColor: '#00B900', borderColor: '#00B900' }}
+            >
+              使用 Line 登入
+            </Button>
+          </div>
+        )}
 
-            {shortee && (
-              <Link
-                href={`${location.origin}/${shortee}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{ display: 'block', width: '100%' }}
+        {/* 歷史記錄 */}
+        {user && (
+          <div>
+            <Title level={4} style={{ marginBottom: 16 }}>
+              <HistoryOutlined /> 歷史記錄
+            </Title>
+            <Card loading={loadingHistory} style={{ maxHeight: '60vh', overflow: 'auto' }}>
+              {history.length > 0 ? (
+                <List
+                  dataSource={history}
+                  renderItem={(item) => (
+                    <List.Item
+                      actions={[
+                        <Link
+                          key="visit"
+                          href={`${location.origin}/${item.shorteeCode}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          <Button type="link" icon={<LinkOutlined />} size="small">
+                            訪問
+                          </Button>
+                        </Link>,
+                        <Button
+                          key="copy"
+                          type="link"
+                          size="small"
+                          onClick={() => {
+                            navigator.clipboard.writeText(`${location.origin}/${item.shorteeCode}`);
+                            messageApi.success('已複製到剪貼簿');
+                          }}
+                        >
+                          複製
+                        </Button>,
+                      ]}
+                    >
+                      <List.Item.Meta
+                        title={
+                          <Space>
+                            <Link
+                              href={`${location.origin}/${item.shorteeCode}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              {item.title || '未命名'}
+                            </Link>
+                            <Tag color="blue">{item.shorteeCode}</Tag>
+                          </Space>
+                        }
+                        description={
+                          <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                            <Text type="secondary" style={{ fontSize: '12px' }}>
+                              {item.origin}
+                            </Text>
+                            <Text type="secondary" style={{ fontSize: '12px' }}>
+                              建立於 {formatDate(item.createdAt)}
+                            </Text>
+                          </Space>
+                        }
+                      />
+                    </List.Item>
+                  )}
+                />
+              ) : (
+                <div style={{ textAlign: 'center', color: '#999' }}>
+                  還沒有建立任何短網址
+                </div>
+              )}
+            </Card>
+          </div>
+        )}
+      </Space>
+    </div>
+  );
+
+  // 手機版底部導航
+  const MobileBottomNav = () => (
+    <div style={{
+      position: 'fixed',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      backgroundColor: '#fff',
+      borderTop: '1px solid #f0f0f0',
+      padding: '8px 0',
+      zIndex: 1000,
+    }}>
+      <Row justify="space-around" align="middle">
+        <Col span={8} style={{ textAlign: 'center' }}>
+          <Button
+            type="text"
+            icon={<HomeOutlined />}
+            onClick={() => setActiveTab('home')}
+            style={{
+              color: activeTab === 'home' ? '#1890ff' : '#666',
+              height: 'auto',
+              padding: '8px 0',
+            }}
+          >
+            <div style={{ fontSize: '12px' }}>首頁</div>
+          </Button>
+        </Col>
+        <Col span={8} style={{ textAlign: 'center' }}>
+          <Button
+            type="text"
+            icon={<HistoryOutlined />}
+            onClick={() => setActiveTab('history')}
+            style={{
+              color: activeTab === 'history' ? '#1890ff' : '#666',
+              height: 'auto',
+              padding: '8px 0',
+            }}
+          >
+            <div style={{ fontSize: '12px' }}>
+              歷史記錄
+              {user && history.length > 0 && (
+                <Badge count={history.length} size="small" style={{ marginLeft: 4 }} />
+              )}
+            </div>
+          </Button>
+        </Col>
+        <Col span={8} style={{ textAlign: 'center' }}>
+          <Button
+            type="text"
+            icon={user ? <UserOutlined /> : <SettingOutlined />}
+            onClick={() => setActiveTab('profile')}
+            style={{
+              color: activeTab === 'profile' ? '#1890ff' : '#666',
+              height: 'auto',
+              padding: '8px 0',
+            }}
+          >
+            <div style={{ fontSize: '12px' }}>
+              {user ? '個人' : '登入'}
+            </div>
+          </Button>
+        </Col>
+      </Row>
+    </div>
+  );
+
+  // 手機版內容區域
+  const MobileContent = () => {
+    switch (activeTab) {
+      case 'home':
+        return (
+          <div style={{ paddingBottom: '80px' }}>
+            <Space direction="vertical" size="large" style={{ width: '100%' }}>
+              <Form.Item validateStatus={validateStatus} help={helpMessage} style={{ marginBottom: 0 }}>
+                <Input
+                  size="large"
+                  addonBefore={<Text>(https://)</Text>}
+                  placeholder="請在此輸入網址..."
+                  value={urlInput}
+                  onChange={handleInputChange}
+                  onKeyDown={({ key }) => key === 'Enter' && isUrlValid && !shorteeing && postShortee()}
+                  style={{ flexGrow: 1 }}
+                />
+              </Form.Item>
+              
+              {/* 標題輸入欄位 - 僅在登入時顯示 */}
+              {user && (
+                <Input
+                  placeholder="為這個短網址添加標題 (選填)"
+                  value={titleInput}
+                  onChange={(e) => setTitleInput(e.target.value)}
+                  onKeyDown={({ key }) => key === 'Enter' && isUrlValid && !shorteeing && postShortee()}
+                />
+              )}
+              
+              <Button
+                size="large"
+                type="primary"
+                onClick={postShortee}
+                loading={shorteeing}
+                disabled={!isUrlValid || shorteeing}
+                style={{ width: '100%' }}
               >
-                <Paragraph
-                  copyable={{
-                    text: `${location.origin}/${shortee}`,
-                    tooltips: '點擊複製網址',
-                  }}
-                  style={{ textAlign: 'center', margin: 0 }}
-                >
-                  {`${location.origin}/${shortee}`}
-                </Paragraph>
-              </Link>
-            )}
+                Shortee!
+              </Button>
 
-            {/* 歷史記錄區域 - 僅在登入時顯示 */}
-            {user && (
+              {shortee && (
+                <Link
+                  href={`${location.origin}/${shortee}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ display: 'block', width: '100%' }}
+                >
+                  <Paragraph
+                    copyable={{
+                      text: `${location.origin}/${shortee}`,
+                      tooltips: '點擊複製網址',
+                    }}
+                    style={{ textAlign: 'center', margin: 0 }}
+                  >
+                    {`${location.origin}/${shortee}`}
+                  </Paragraph>
+                </Link>
+              )}
+            </Space>
+          </div>
+        );
+      
+      case 'history':
+        return (
+          <div style={{ paddingBottom: '80px' }}>
+            {user ? (
               <Card
                 title={
                   <Space>
@@ -470,10 +610,202 @@ function Home(): JSX.Element {
                   </div>
                 )}
               </Card>
+            ) : (
+              <div style={{ textAlign: 'center', padding: '40px 20px' }}>
+                <UserOutlined style={{ fontSize: '48px', color: '#ccc', marginBottom: 16 }} />
+                <Title level={4}>請先登入</Title>
+                <Text type="secondary">登入後即可查看您的歷史記錄</Text>
+                <div style={{ marginTop: 16 }}>
+                  <Button 
+                    type="primary" 
+                    onClick={handleLineLogin}
+                    style={{ backgroundColor: '#00B900', borderColor: '#00B900' }}
+                  >
+                    使用 Line 登入
+                  </Button>
+                </div>
+              </div>
             )}
-          </Space>
-        </Col>
-      </Row>
+          </div>
+        );
+      
+      case 'profile':
+        return (
+          <div style={{ paddingBottom: '80px' }}>
+            {user ? (
+              <Card>
+                <div style={{ textAlign: 'center', padding: '20px 0' }}>
+                  <Avatar size={80} icon={<UserOutlined />} />
+                  <div style={{ marginTop: 16 }}>
+                    <Title level={3}>{user.name}</Title>
+                  </div>
+                  <Button 
+                    type="primary" 
+                    danger
+                    icon={<LogoutOutlined />}
+                    onClick={handleLogout}
+                    style={{ marginTop: 16 }}
+                  >
+                    登出
+                  </Button>
+                </div>
+              </Card>
+            ) : (
+              <div style={{ textAlign: 'center', padding: '40px 20px' }}>
+                <UserOutlined style={{ fontSize: '48px', color: '#ccc', marginBottom: 16 }} />
+                <Title level={4}>歡迎使用 Shortee</Title>
+                <Text type="secondary">登入後可享受更多功能</Text>
+                <div style={{ marginTop: 16 }}>
+                  <Button 
+                    type="primary" 
+                    size="large"
+                    onClick={handleLineLogin}
+                    style={{ backgroundColor: '#00B900', borderColor: '#00B900' }}
+                  >
+                    使用 Line 登入
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <>
+      <Head>
+        <title>{meta.title}</title>
+        <meta name="description" content={meta.description} />
+
+        {/* Open Graph / Facebook */}
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content={meta.url} />
+        <meta property="og:title" content={meta.title} />
+        <meta property="og:description" content={meta.description} />
+        {/* <meta property="og:image" content="https://shortee.evenc.studio/og-image.png" /> */}
+        {/* 請替換成您的圖片網址 */}
+
+        {/* X */}
+        <meta property="x:card" content="summary_large_image" />
+        <meta property="x:url" content={meta.url} />
+        <meta property="x:title" content={meta.title} />
+        <meta property="x:description" content={meta.description} />
+        {/* <meta property="x:image" content="https://shortee.evenc.studio/x-image.png" /> */}
+        {/* 請替換成您的圖片網址 */}
+      </Head>
+
+      {/* 桌面版 */}
+      {!isMobile && (
+        <>
+          <Row justify="center" style={{ width: '100%' }}>
+            <Col xs={24} sm={20} md={16} lg={12} xl={10}>
+              {/* 使用者狀態區域 */}
+              <Row justify="end" style={{ marginBottom: 16 }}>
+                {!loading && (
+                  user ? (
+                    <Button
+                      icon={<MenuOutlined />}
+                      onClick={() => setDrawerVisible(true)}
+                      style={{ borderRadius: '50%', width: 40, height: 40 }}
+                    />
+                  ) : (
+                    <Button 
+                      type="primary" 
+                      onClick={handleLineLogin}
+                      style={{ backgroundColor: '#00B900', borderColor: '#00B900' }}
+                    >
+                      使用 Line 登入
+                    </Button>
+                  )
+                )}
+              </Row>
+              
+              <Space direction="vertical" size="large" style={{ width: '100%' }}>
+                <Form.Item validateStatus={validateStatus} help={helpMessage} style={{ marginBottom: 0 }}>
+                  <Input
+                    size="large"
+                    addonBefore={<Text>(https://)</Text>}
+                    placeholder="請在此輸入網址..."
+                    value={urlInput}
+                    onChange={handleInputChange}
+                    onKeyDown={({ key }) => key === 'Enter' && isUrlValid && !shorteeing && postShortee()}
+                    style={{ flexGrow: 1 }}
+                  />
+                </Form.Item>
+                
+                {/* 標題輸入欄位 - 僅在登入時顯示 */}
+                {user && (
+                  <Input
+                    placeholder="為這個短網址添加標題 (選填)"
+                    value={titleInput}
+                    onChange={(e) => setTitleInput(e.target.value)}
+                    onKeyDown={({ key }) => key === 'Enter' && isUrlValid && !shorteeing && postShortee()}
+                  />
+                )}
+                
+                <Button
+                  size="large"
+                  type="primary"
+                  onClick={postShortee}
+                  loading={shorteeing}
+                  disabled={!isUrlValid || shorteeing}
+                  style={{ width: '100%' }}
+                >
+                  Shortee!
+                </Button>
+
+                {shortee && (
+                  <Link
+                    href={`${location.origin}/${shortee}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ display: 'block', width: '100%' }}
+                  >
+                    <Paragraph
+                      copyable={{
+                        text: `${location.origin}/${shortee}`,
+                        tooltips: '點擊複製網址',
+                      }}
+                      style={{ textAlign: 'center', margin: 0 }}
+                    >
+                      {`${location.origin}/${shortee}`}
+                    </Paragraph>
+                  </Link>
+                )}
+              </Space>
+            </Col>
+          </Row>
+
+          {/* 桌面版滑出介面 */}
+          <Drawer
+            title="個人中心"
+            placement="right"
+            onClose={() => setDrawerVisible(false)}
+            open={drawerVisible}
+            width={320}
+          >
+            <DesktopDrawerContent />
+          </Drawer>
+        </>
+      )}
+
+      {/* 手機版 */}
+      {isMobile && (
+        <>
+          <div style={{ paddingBottom: '80px' }}>
+            <Row justify="center" style={{ width: '100%' }}>
+              <Col span={24} style={{ padding: '0 16px' }}>
+                <MobileContent />
+              </Col>
+            </Row>
+          </div>
+          <MobileBottomNav />
+        </>
+      )}
     </>
   );
 }
