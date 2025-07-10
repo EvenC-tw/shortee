@@ -1,11 +1,17 @@
+import { AuthenticatedRequest, withAuth } from '../../lib/middleware/auth';
 import { DatabaseFactory, DatabaseType } from '../../lib/database/factory';
-import { NextApiRequest, NextApiResponse } from 'next';
+
+import { NextApiResponse } from 'next';
 
 // 從環境變數取得資料庫類型，預設使用 MongoDB
 const dbType = (process.env.DATABASE_TYPE as DatabaseType) || DatabaseType.MONGODB;
 
 interface ShorteeData {
   origin: string;
+  title?: string;
+  userId?: string;
+  provider?: string;
+  providerId?: string;
   createdAt: Date;
 }
 
@@ -15,27 +21,31 @@ interface ApiResponse {
   data?: {
     shortee: string;
     origin: string;
+    title?: string;
   };
   origin?: string;
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse<ApiResponse>) {
+async function handler(req: AuthenticatedRequest, res: NextApiResponse<ApiResponse>): Promise<void> {
   const { method } = req;
   switch (method) {
     case 'GET': {
-      return getShortee(req, res);
+      await getShortee(req, res);
+      return;
     }
     case 'POST': {
-      return addShortee(req, res);
+      await addShortee(req, res);
+      return;
     }
     default: {
       res.setHeader('Allow', ['GET', 'POST']);
-      return res.status(405).end(`Method ${method} Not Allowed`);
+      res.status(405).end(`Method ${method} Not Allowed`);
+      return;
     }
   }
 }
 
-async function getShortee(req: NextApiRequest, res: NextApiResponse<ApiResponse>) {
+async function getShortee(req: AuthenticatedRequest, res: NextApiResponse<ApiResponse>) {
   console.log(`getShortee API (${dbType}) called with query:`, req.query);
   const { shortee } = req.query;
 
@@ -49,6 +59,20 @@ async function getShortee(req: NextApiRequest, res: NextApiResponse<ApiResponse>
     const data = await db.getShortee(shortee);
     
     if (data) {
+      // 記錄使用統計
+      try {
+        await db.recordUsage(shortee, {
+          shorteeCode: shortee,
+          userId: req.user?.userId,
+          accessedAt: new Date(),
+          userAgent: req.headers['user-agent'],
+          ipAddress: req.headers['x-forwarded-for'] as string || req.socket.remoteAddress,
+        });
+      } catch (usageError) {
+        console.warn('Failed to record usage:', usageError);
+        // 不中斷主要流程
+      }
+
       return res.status(200).json({ origin: data.origin });
     } else {
       console.log(`getShortee: Code ${shortee} not found.`);
@@ -64,9 +88,9 @@ async function getShortee(req: NextApiRequest, res: NextApiResponse<ApiResponse>
   }
 }
 
-async function addShortee(req: NextApiRequest, res: NextApiResponse<ApiResponse>) {
+async function addShortee(req: AuthenticatedRequest, res: NextApiResponse<ApiResponse>) {
   console.log(`addShortee API (${dbType}) called with body:`, req.body);
-  const { origin, shortee } = req.body;
+  const { origin, shortee, title } = req.body;
 
   if (!origin || typeof origin !== 'string' || !shortee || typeof shortee !== 'string') {
     console.warn('addShortee: Missing or invalid origin or shortee in request body.');
@@ -138,13 +162,20 @@ async function addShortee(req: NextApiRequest, res: NextApiResponse<ApiResponse>
       });
     }
 
-    console.log(`addShortee: Attempting to save shortee: code=${shortee}, origin=${origin}`);
+    console.log(`addShortee: Attempting to save shortee: code=${shortee}, origin=${origin}, title=${title}`);
     try {
       const db = await DatabaseFactory.getDatabase(dbType);
-      await db.addShortee(shortee, {
+      
+      const shorteeData: ShorteeData = {
         origin: origin,
+        title: title || undefined,
+        userId: req.user?.userId,
+        provider: req.user?.provider,
+        providerId: req.user?.providerId,
         createdAt: new Date()
-      });
+      };
+
+      await db.addShortee(shortee, shorteeData);
       console.log(`addShortee: Successfully saved shortee: ${shortee}`);
     } catch (dbError) {
       if ((dbError as Error).message === '此短網址代碼已被使用') {
@@ -167,6 +198,7 @@ async function addShortee(req: NextApiRequest, res: NextApiResponse<ApiResponse>
       data: {
         shortee,
         origin: origin,
+        title: title,
       },
     });
   } catch (error) {
@@ -199,13 +231,15 @@ function isValidWebUrl(urlObject: URL): boolean {
     // console.debug(`isValidWebUrl: Invalid protocol - ${protocol}`); // Debug level, can be noisy
     return false;
   }
-  if (!hostname) {
-    // console.debug(`isValidWebUrl: Missing hostname`);
+  if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1') {
+    // console.debug(`isValidWebUrl: Localhost detected - ${hostname}`); // Debug level, can be noisy
     return false;
   }
-  if (hostname === 'localhost' || !hostname.includes('.')) {
-    // console.debug(`isValidWebUrl: Invalid hostname (missing TLD or localhost) - ${hostname}`);
+  if (!hostname.includes('.')) {
+    // console.debug(`isValidWebUrl: No TLD detected - ${hostname}`); // Debug level, can be noisy
     return false;
   }
   return true;
-} 
+}
+
+export default withAuth(handler); 

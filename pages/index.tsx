@@ -1,16 +1,23 @@
-import { App, Avatar, Button, Col, Dropdown, Form, Input, Row, Space, Typography } from 'antd';
-import { LogoutOutlined, UserOutlined } from '@ant-design/icons';
+import { App, Avatar, Button, Card, Col, Dropdown, Form, Input, List, Row, Space, Tag, Typography } from 'antd';
+import { HistoryOutlined, LinkOutlined, LogoutOutlined, UserOutlined } from '@ant-design/icons';
 import { useEffect, useState } from 'react';
 
 import Head from 'next/head';
 import Link from 'next/link';
 import uuidBase62 from 'uuid62';
 
-const { Paragraph, Text } = Typography;
+const { Paragraph, Text, Title } = Typography;
 
 interface User {
   name: string;
   [key: string]: any;
+}
+
+interface ShorteeHistory {
+  shorteeCode: string;
+  origin: string;
+  title?: string;
+  createdAt: Date;
 }
 
 interface MetaData {
@@ -56,17 +63,29 @@ function Home(): JSX.Element {
   const [shortee, setShortee] = useState<string>('');
 
   const [urlInput, setUrlInput] = useState<string>('');
+  const [titleInput, setTitleInput] = useState<string>('');
   const [validateStatus, setValidateStatus] = useState<'' | 'validating' | 'success' | 'error' | 'warning'>('');
   const [helpMessage, setHelpMessage] = useState<string>('');
 
   // 使用者狀態
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const [history, setHistory] = useState<ShorteeHistory[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState<boolean>(false);
 
   // 檢查使用者登入狀態
   useEffect(() => {
     checkAuthStatus();
   }, []);
+
+  // 當使用者登入狀態改變時，載入歷史記錄
+  useEffect(() => {
+    if (user) {
+      loadHistory();
+    } else {
+      setHistory([]);
+    }
+  }, [user]);
 
   const checkAuthStatus = async (): Promise<void> => {
     try {
@@ -79,6 +98,24 @@ function Home(): JSX.Element {
       console.error('Auth check failed:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadHistory = async (): Promise<void> => {
+    if (!user) return;
+    
+    setLoadingHistory(true);
+    try {
+      const response = await fetch('/api/shortee/history');
+      if (response.ok) {
+        const data = await response.json();
+        setHistory(data.shortees);
+      }
+    } catch (error) {
+      console.error('Failed to load history:', error);
+      messageApi.error('載入歷史記錄失敗');
+    } finally {
+      setLoadingHistory(false);
     }
   };
 
@@ -204,6 +241,7 @@ function Home(): JSX.Element {
         body: JSON.stringify({
           origin: originUrl,
           shortee: tempShorteeCode,
+          title: titleInput.trim() || undefined,
         }),
       });
 
@@ -215,7 +253,13 @@ function Home(): JSX.Element {
       }
 
       setShortee(tempShorteeCode);
+      setTitleInput('');
       messageApi.success('短網址已成功產生！');
+      
+      // 如果使用者已登入，重新載入歷史記錄
+      if (user) {
+        loadHistory();
+      }
     } catch (error) {
       console.error('postShortee 函數處理錯誤:', error);
       messageApi.error((error as Error).message || '建立短網址時發生預期外的錯誤，請稍後再試。');
@@ -223,6 +267,17 @@ function Home(): JSX.Element {
       setShorteeing(false);
     }
   }
+
+  const formatDate = (dateString: string | Date): string => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('zh-TW', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
 
   return (
     <>
@@ -302,6 +357,17 @@ function Home(): JSX.Element {
                 style={{ flexGrow: 1 }}
               />
             </Form.Item>
+            
+            {/* 標題輸入欄位 - 僅在登入時顯示 */}
+            {user && (
+              <Input
+                placeholder="為這個短網址添加標題 (選填)"
+                value={titleInput}
+                onChange={(e) => setTitleInput(e.target.value)}
+                onKeyDown={({ key }) => key === 'Enter' && isUrlValid && !shorteeing && postShortee()}
+              />
+            )}
+            
             <Button
               size="large"
               type="primary"
@@ -330,6 +396,80 @@ function Home(): JSX.Element {
                   {`${location.origin}/${shortee}`}
                 </Paragraph>
               </Link>
+            )}
+
+            {/* 歷史記錄區域 - 僅在登入時顯示 */}
+            {user && (
+              <Card
+                title={
+                  <Space>
+                    <HistoryOutlined />
+                    <span>歷史記錄</span>
+                  </Space>
+                }
+                loading={loadingHistory}
+              >
+                {history.length > 0 ? (
+                  <List
+                    dataSource={history}
+                    renderItem={(item) => (
+                      <List.Item
+                        actions={[
+                          <Link
+                            key="visit"
+                            href={`${location.origin}/${item.shorteeCode}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            <Button type="link" icon={<LinkOutlined />}>
+                              訪問
+                            </Button>
+                          </Link>,
+                          <Button
+                            key="copy"
+                            type="link"
+                            onClick={() => {
+                              navigator.clipboard.writeText(`${location.origin}/${item.shorteeCode}`);
+                              messageApi.success('已複製到剪貼簿');
+                            }}
+                          >
+                            複製
+                          </Button>,
+                        ]}
+                      >
+                        <List.Item.Meta
+                          title={
+                            <Space>
+                              <Link
+                                href={`${location.origin}/${item.shorteeCode}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                              >
+                                {item.title || '未命名'}
+                              </Link>
+                              <Tag color="blue">{item.shorteeCode}</Tag>
+                            </Space>
+                          }
+                          description={
+                            <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                              <Text type="secondary" style={{ fontSize: '12px' }}>
+                                {item.origin}
+                              </Text>
+                              <Text type="secondary" style={{ fontSize: '12px' }}>
+                                建立於 {formatDate(item.createdAt)}
+                              </Text>
+                            </Space>
+                          }
+                        />
+                      </List.Item>
+                    )}
+                  />
+                ) : (
+                  <div style={{ textAlign: 'center', color: '#999' }}>
+                    還沒有建立任何短網址
+                  </div>
+                )}
+              </Card>
             )}
           </Space>
         </Col>

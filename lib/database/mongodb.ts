@@ -1,4 +1,4 @@
-import { DatabaseInterface, ShorteeData } from './interface';
+import { DatabaseInterface, ShorteeData, ShorteeUsage } from './interface';
 import { Db, MongoClient } from 'mongodb';
 
 /**
@@ -61,7 +61,12 @@ export class MongoDBDatabase implements DatabaseInterface {
       }
       return {
         origin: result.origin,
+        title: result.title,
+        userId: result.userId,
+        provider: result.provider,
+        providerId: result.providerId,
         createdAt: result.createdAt,
+        updatedAt: result.updatedAt,
       };
     } catch (error) {
       console.error('MongoDB 查詢失敗:', error);
@@ -74,10 +79,16 @@ export class MongoDBDatabase implements DatabaseInterface {
    */
   async addShortee(shorteeCode: string, data: ShorteeData): Promise<void> {
     try {
+      const now = new Date();
       await this.db.collection('shortees').insertOne({
         shorteeCode,
         origin: data.origin,
-        createdAt: data.createdAt || new Date(),
+        title: data.title,
+        userId: data.userId,
+        provider: data.provider,
+        providerId: data.providerId,
+        createdAt: data.createdAt || now,
+        updatedAt: now,
       });
     } catch (error) {
       if ((error as any).code === 11000) {
@@ -85,6 +96,77 @@ export class MongoDBDatabase implements DatabaseInterface {
       }
       console.error('MongoDB 新增失敗:', error);
       throw new Error('新增短網址時發生錯誤');
+    }
+  }
+
+  /**
+   * @inheritdoc
+   */
+  async getUserShortees(userId: string, limit: number = 50, offset: number = 0): Promise<ShorteeData[]> {
+    try {
+      const cursor = this.db.collection('shortees')
+        .find({ userId })
+        .sort({ createdAt: -1 })
+        .skip(offset)
+        .limit(limit);
+
+      const results = await cursor.toArray();
+      return results.map(result => ({
+        shorteeCode: result.shorteeCode,
+        origin: result.origin,
+        title: result.title,
+        userId: result.userId,
+        provider: result.provider,
+        providerId: result.providerId,
+        createdAt: result.createdAt,
+        updatedAt: result.updatedAt,
+      }));
+    } catch (error) {
+      console.error('MongoDB 查詢使用者短網址失敗:', error);
+      throw new Error('查詢使用者短網址時發生錯誤');
+    }
+  }
+
+  /**
+   * @inheritdoc
+   */
+  async recordUsage(shorteeCode: string, usage: ShorteeUsage): Promise<void> {
+    try {
+      await this.db.collection('shortee_usage').insertOne({
+        shorteeCode,
+        userId: usage.userId,
+        accessedAt: usage.accessedAt,
+        userAgent: usage.userAgent,
+        ipAddress: usage.ipAddress,
+      });
+    } catch (error) {
+      console.error('MongoDB 記錄使用統計失敗:', error);
+      throw new Error('記錄使用統計時發生錯誤');
+    }
+  }
+
+  /**
+   * @inheritdoc
+   */
+  async getShorteeUsage(shorteeCode: string, limit: number = 50, offset: number = 0): Promise<ShorteeUsage[]> {
+    try {
+      const cursor = this.db.collection('shortee_usage')
+        .find({ shorteeCode })
+        .sort({ accessedAt: -1 })
+        .skip(offset)
+        .limit(limit);
+
+      const results = await cursor.toArray();
+      return results.map(result => ({
+        shorteeCode: result.shorteeCode,
+        userId: result.userId,
+        accessedAt: result.accessedAt,
+        userAgent: result.userAgent,
+        ipAddress: result.ipAddress,
+      }));
+    } catch (error) {
+      console.error('MongoDB 查詢使用統計失敗:', error);
+      throw new Error('查詢使用統計時發生錯誤');
     }
   }
 
